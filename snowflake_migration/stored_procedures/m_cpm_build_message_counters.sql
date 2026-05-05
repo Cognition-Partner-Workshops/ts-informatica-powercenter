@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Stored Procedure: SP_CPM_BUILD_MESSAGE_COUNTERS
 -- Migrated from Informatica PowerCenter Mapping: m_CPM_Build_Message_Counters
--- Source tables: CPM_NEWPAY_TBL, ERROR_TBL, PAYMASTER_THREE, CPM_NEWPAY_TBL
+-- Source tables: CPM_NEWPAY_TBL, ERROR_TBL, PAYMASTER_THREE_RAW, CPM_NEWPAY_TBL
 -- Target tables: COUNTER_TBL, CPM_MESSAGE_FILE
 -- =============================================================================
 
@@ -63,9 +63,9 @@ BEGIN
         COUNTER_VALUE,
         PP_END_YEAR,
         PP_NUM,
-        SESSSTARTTIME AS RUN_DATE,
-        $PMMappingName AS PROCESS_NAME
-    FROM CPM_NEWPAY_TBL, ERROR_TBL, PAYMASTER_THREE
+        v_start_ts AS RUN_DATE,
+        'SP_CPM_BUILD_MESSAGE_COUNTERS' AS PROCESS_NAME
+    FROM CPM_NEWPAY_TBL, ERROR_TBL, PAYMASTER_THREE_RAW
     ;
 
     v_row_count := v_row_count + SQLROWCOUNT;
@@ -79,7 +79,7 @@ BEGIN
     SELECT
         COUNT_VALUE,
         COUNT_DESC
-    FROM CPM_NEWPAY_TBL, ERROR_TBL, PAYMASTER_THREE
+    FROM CPM_NEWPAY_TBL, ERROR_TBL, PAYMASTER_THREE_RAW
     ;
 
     v_row_count := v_row_count + SQLROWCOUNT;

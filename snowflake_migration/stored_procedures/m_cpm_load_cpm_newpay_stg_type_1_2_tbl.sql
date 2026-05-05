@@ -70,7 +70,7 @@ BEGIN
         SPO_TERM_ID,
         -- ... and 239 more expressions
     FROM CPM_YTD_DETAIL_STG_TBL, PSEUDOSSN_TBL, CPM_PM1_STG_TBL
-    WHERE /* Filter: fil_Bad_Records */ ERROR_FLAG = TRUE AND /* Filter: fil_Error_Message */ NOT ISNULL(ERROR_MESSAGE)
+    WHERE /* Good records: negate error filter */ (ERROR_FLAG IS NULL OR ERROR_FLAG = FALSE)
     ;
 
     v_row_count := v_row_count + SQLROWCOUNT;
@@ -85,11 +85,12 @@ BEGIN
         PROCESS_NAME,
         ERROR_MESSAGE,
         SOURCE_KEY,
-        SESSSTARTTIME AS ERROR_DATE,
+        v_start_ts AS ERROR_DATE,
         PP_END_YEAR,
         PP_NUM
     FROM CPM_YTD_DETAIL_STG_TBL, PSEUDOSSN_TBL, CPM_PM1_STG_TBL
-    WHERE /* Filter: fil_Bad_Records */ ERROR_FLAG = TRUE AND /* Filter: fil_Error_Message */ NOT ISNULL(ERROR_MESSAGE)
+    WHERE /* Filter: fil_Bad_Records */ ERROR_FLAG = TRUE
+      AND /* Filter: fil_Error_Message */ ERROR_MESSAGE IS NOT NULL
     ;
 
     v_row_count := v_row_count + SQLROWCOUNT;

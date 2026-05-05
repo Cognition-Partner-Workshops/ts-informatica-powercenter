@@ -50,9 +50,10 @@ BEGIN
         SOURCE_KEY,
         PP_END_YEAR,
         PP_NUM,
-        SESSSTARTTIME AS ERROR_DATE
+        v_start_ts AS ERROR_DATE
     FROM CPM_PM3_STG_TBL
-    WHERE /* Filter: fil_Error_Message */ NOT ISNULL(ERROR_MESSAGE) AND /* Filter: fil_Bad_Records */ ERROR_FLAG = TRUE
+    WHERE /* Filter: fil_Bad_Records */ ERROR_FLAG = TRUE
+      AND /* Filter: fil_Error_Message */ ERROR_MESSAGE IS NOT NULL
     ;
 
     v_row_count := v_row_count + SQLROWCOUNT;
@@ -83,7 +84,7 @@ BEGIN
         ALT_2_INST_ACCT_NO,
         -- ... and 31 more expressions
     FROM CPM_PM3_STG_TBL
-    WHERE /* Filter: fil_Error_Message */ NOT ISNULL(ERROR_MESSAGE) AND /* Filter: fil_Bad_Records */ ERROR_FLAG = TRUE
+    WHERE /* Good records: negate error filter */ (ERROR_FLAG IS NULL OR ERROR_FLAG = FALSE)
     ;
 
     v_row_count := v_row_count + SQLROWCOUNT;

@@ -328,7 +328,7 @@ ALTER TASK CPM_ETL_DAILY RESUME;
 
 3. **ABORT() calls**: Informatica `ABORT()` expressions that halt the workflow on validation failures are commented out. These should be replaced with Snowflake exception handling or logged to an error table.
 
-4. **Sequence Generation**: `v_SEQ_ID` counters used in `exp_Final_YTD_State` should be replaced with Snowflake `ROW_NUMBER()` window functions or `SEQUENCE` objects.
+4. **Sequence Generation**: `v_SEQ_ID` counters from Informatica Sequence Generator transformations have been replaced with `ROW_NUMBER() OVER (ORDER BY ...)` window functions. Verify the ordering columns produce the expected sequence values.
 
 5. **Afterload Stored Procedure Dependencies**: `SP_EHRP2BIIS_AFTERLOAD` calls several sub-procedures (`SP_UPDATE_SEQUENCE_NUMBER_TBL`, `SP_UPDT_ERP2BIIS_CRE8_REMARKS01`, etc.) that correspond to Oracle PL/SQL procedures not included in this XML export. These need separate migration from the Oracle database.
 
