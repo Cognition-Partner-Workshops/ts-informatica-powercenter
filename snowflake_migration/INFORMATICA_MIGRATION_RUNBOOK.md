@@ -308,7 +308,7 @@ ALTER TASK CPM_ETL_DAILY RESUME;
 
 ## Validation Checklist
 
-- [ ] All 23 tables created in Snowflake
+- [ ] All tables created in Snowflake (23 staging/target + 4 flat-file source + 2 flat-file target)
 - [ ] All 5 stages created and accessible
 - [ ] Sample flat files successfully loaded via COPY INTO
 - [ ] SP_EHRP2BIIS_PRELOAD truncates all staging tables
@@ -334,6 +334,8 @@ ALTER TASK CPM_ETL_DAILY RESUME;
 
 6. **Informatica Session Variables (`$$MAP_PP_END_YEAR`, `$$MAP_PP_NUM`)**: Converted to stored procedure parameters. Ensure calling code passes correct pay period values.
 
-7. **Oracle `ROWNUM` usage**: Converted to `LIMIT 1` in Snowflake. Verify ordering is preserved.
+7. **Oracle `ROWNUM` usage**: Converted to scalar subquery with `MIN()` in Snowflake (e.g., afterload WIP status check). Verify ordering is preserved.
 
 8. **Schema references**: Original Oracle used `HISTDBA`, `NKNIGHT`, `INFO_TARGET_DEV`, and `EHRP` schemas. These are unified into a single Snowflake `CPM` schema. Adjust if multi-schema architecture is desired.
+
+9. **Flat-file source tables**: The DDL creates structured source tables (PAYMASTER_FILE, YTD_FILE, MER_FILE, PAD_FILE) matching the Informatica SOURCE definitions. The `*_RAW` tables hold raw fixed-width records from COPY INTO. A Normalizer parsing step (using SUBSTR on raw records with byte offsets from the COBOL copybooks) is needed to populate the structured tables from the _RAW tables before the staging SPs can execute.

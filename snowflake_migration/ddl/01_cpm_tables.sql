@@ -2024,3 +2024,47 @@ CREATE TABLE IF NOT EXISTS PSEUDOSSN_TBL (
     PP_END_YEAR NUMBER(4,0) NOT NULL,
     PRIMARY KEY (PSEUDOSSN)
 );
+
+-- =============================================================================
+-- Flat-file target tables (originally written as flat files by Informatica)
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS CPM_PAY_PERIOD_DATE_FILE (
+    PAY_PERIOD_TXT VARCHAR(100)
+);
+
+CREATE TABLE IF NOT EXISTS CPM_MESSAGE_FILE (
+    COUNT_VALUE NUMBER(15,0),
+    COUNT_DESC VARCHAR(200)
+);
+
+-- =============================================================================
+-- Structured source tables parsed from raw flat-file loads
+-- These mirror the Informatica SOURCE definitions. Data flows:
+--   Stage → *_RAW (raw fixed-width) → these tables (parsed fields) → staging SPs
+-- The Normalizer parsing logic (SUBSTR on raw records) should be implemented
+-- as a separate parsing step or view layer on top of the *_RAW tables.
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS PAYMASTER_FILE (
+    WS_PAYMASTER_HEADER VARCHAR(256),
+    WS_PAYMASTER_RECORD_1 VARCHAR(258),
+    WS_PAYMASTER_RECORD_2 VARCHAR(263),
+    WS_PAYMASTER_RECORD_3 VARCHAR(260)
+);
+
+CREATE TABLE IF NOT EXISTS YTD_FILE (
+    DFAS_YTD_HEADER VARCHAR(1050),
+    DFAS_YTD_DETAIL VARCHAR(1129),
+    DFAS_YTD_STATE VARCHAR(1052)
+);
+
+CREATE TABLE IF NOT EXISTS MER_FILE (
+    MER_LV_HDR_RECORD VARCHAR(700),
+    MER_LV_DETAIL_RECORD VARCHAR(768)
+);
+
+CREATE TABLE IF NOT EXISTS PAD_FILE (
+    PAD_RECORD_HEADER VARCHAR(1400),
+    PAD_RECORD_DETAIL VARCHAR(1508)
+);

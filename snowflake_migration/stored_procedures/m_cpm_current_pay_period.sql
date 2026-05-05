@@ -36,8 +36,9 @@ BEGIN
         PAY_PERIOD_TXT
     )
     SELECT
-        PAY_PERIOD AS PAY_PERIOD_TXT
+        TO_CHAR(PP_END_YEAR) || LPAD(TO_CHAR(PP_NUM), 2, '0') AS PAY_PERIOD_TXT
     FROM PAY_PERIOD
+    WHERE CURR_PP_FLAG = 'Y'
     ;
 
     v_row_count := v_row_count + SQLROWCOUNT;

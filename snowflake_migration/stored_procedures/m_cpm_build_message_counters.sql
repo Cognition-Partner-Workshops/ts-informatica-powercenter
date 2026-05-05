@@ -54,32 +54,49 @@ BEGIN
 
     -- ========================================
     -- Load target: COUNTER_TBL
+    -- Independent aggregations per agg_Count_Inputs, agg_Count_CPM, agg_Count_Errors
     -- ========================================
     INSERT INTO COUNTER_TBL (
         COUNTER_DESCRIPTION, COUNTER_VALUE, PP_END_YEAR, PP_NUM, RUN_DATE, PROCESS_NAME
     )
-    SELECT
-        COUNTER_DESCRIPTION,
-        COUNTER_VALUE,
-        PP_END_YEAR,
-        PP_NUM,
-        v_start_ts AS RUN_DATE,
-        'SP_CPM_BUILD_MESSAGE_COUNTERS' AS PROCESS_NAME
-    FROM CPM_NEWPAY_TBL, ERROR_TBL, PAYMASTER_THREE_RAW
+    SELECT 'INPUT_RECORD_COUNT' AS COUNTER_DESCRIPTION,
+           COUNT(*) AS COUNTER_VALUE,
+           v_MAP_PP_END_YEAR AS PP_END_YEAR,
+           v_MAP_PP_NUM AS PP_NUM,
+           v_start_ts AS RUN_DATE,
+           'SP_CPM_BUILD_MESSAGE_COUNTERS' AS PROCESS_NAME
+    FROM PAYMASTER_THREE_RAW
+    UNION ALL
+    SELECT 'CPM_RECORD_COUNT',
+           COUNT(*),
+           v_MAP_PP_END_YEAR, v_MAP_PP_NUM, v_start_ts,
+           'SP_CPM_BUILD_MESSAGE_COUNTERS'
+    FROM CPM_NEWPAY_TBL
+    UNION ALL
+    SELECT 'ERROR_RECORD_COUNT',
+           COUNT(*),
+           v_MAP_PP_END_YEAR, v_MAP_PP_NUM, v_start_ts,
+           'SP_CPM_BUILD_MESSAGE_COUNTERS'
+    FROM ERROR_TBL
     ;
 
     v_row_count := v_row_count + SQLROWCOUNT;
 
     -- ========================================
     -- Load target: CPM_MESSAGE_FILE
+    -- Independent counts per agg_Count_Inputs, agg_Count_CPM, agg_Count_Errors
     -- ========================================
     INSERT INTO CPM_MESSAGE_FILE (
         COUNT_VALUE, COUNT_DESC
     )
-    SELECT
-        COUNT_VALUE,
-        COUNT_DESC
-    FROM CPM_NEWPAY_TBL, ERROR_TBL, PAYMASTER_THREE_RAW
+    SELECT COUNT(*) AS COUNT_VALUE, 'Total Input Records' AS COUNT_DESC
+    FROM PAYMASTER_THREE_RAW
+    UNION ALL
+    SELECT COUNT(*), 'Total CPM Records'
+    FROM CPM_NEWPAY_TBL
+    UNION ALL
+    SELECT COUNT(*), 'Total Error Records'
+    FROM ERROR_TBL
     ;
 
     v_row_count := v_row_count + SQLROWCOUNT;

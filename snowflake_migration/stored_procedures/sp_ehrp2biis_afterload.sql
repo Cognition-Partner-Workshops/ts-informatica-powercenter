@@ -15,7 +15,6 @@ DECLARE
     v_start_ts TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP();
     v_step VARCHAR DEFAULT 'INIT';
     v_row_count INTEGER DEFAULT 0;
-    v_p_startdt TIMESTAMP_NTZ;
 BEGIN
 
     -- ========================================
@@ -76,13 +75,10 @@ BEGIN
     UPDATE PROCESS_TABLE
     SET P_STARTDT = NULL;
 
-    -- Find earliest record with changed WIP status
-    SELECT effdt INTO :v_p_startdt
-    FROM (
-        SELECT a.BIIS_EVENT_ID, a.EMPLID,
-               a.EMPL_RCD, a.EFFDT, a.EFFSEQ,
-               a.GVT_WIP_STATUS AS OLD_STATUS,
-               b.GVT_WIP_STATUS AS NEW_STATUS
+    -- Find earliest record with changed WIP status (scalar subquery returns NULL if no rows)
+    UPDATE PROCESS_TABLE
+    SET P_STARTDT = (
+        SELECT MIN(a.EFFDT)
         FROM EHRP_RECS_TRACKING_TBL a
         JOIN PS_GVT_JOB b
             ON a.EMPLID = b.EMPLID
@@ -91,12 +87,7 @@ BEGIN
            AND a.EFFSEQ = b.EFFSEQ
         WHERE a.GVT_WIP_STATUS <> b.GVT_WIP_STATUS
           AND a.CHANGED_WIP_STATUS IS NULL
-        ORDER BY a.EFFDT, a.BIIS_EVENT_ID
-        LIMIT 1
     );
-
-    UPDATE PROCESS_TABLE
-    SET P_STARTDT = :v_p_startdt;
 
     -- Default to far-future date if no changes found
     UPDATE PROCESS_TABLE
