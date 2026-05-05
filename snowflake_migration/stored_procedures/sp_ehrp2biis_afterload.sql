@@ -211,7 +211,8 @@ BEGIN
 
 EXCEPTION
     WHEN OTHER THEN
-        RETURN 'SP_EHRP2BIIS_AFTERLOAD FAILED at step ' || v_step
-            || '. Error: ' || SQLERRM;
+        INSERT INTO ERROR_TBL (PROCESS_NAME, ERROR_MESSAGE, ERROR_DATE)
+            VALUES ('SP_EHRP2BIIS_AFTERLOAD', 'Failed at step ' || v_step || ': ' || SQLERRM, CURRENT_TIMESTAMP());
+        RAISE;
 END;
 $$;

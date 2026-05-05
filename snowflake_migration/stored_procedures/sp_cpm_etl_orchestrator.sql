@@ -136,7 +136,8 @@ BEGIN
 
 EXCEPTION
     WHEN OTHER THEN
-        RETURN 'SP_CPM_ETL_ORCHESTRATOR FAILED at step ' || v_step
-            || '. Error: ' || SQLERRM;
+        INSERT INTO ERROR_TBL (PROCESS_NAME, ERROR_MESSAGE, ERROR_DATE)
+            VALUES ('SP_CPM_ETL_ORCHESTRATOR', 'Failed at step ' || v_step || ': ' || SQLERRM, CURRENT_TIMESTAMP());
+        RAISE;
 END;
 $$;

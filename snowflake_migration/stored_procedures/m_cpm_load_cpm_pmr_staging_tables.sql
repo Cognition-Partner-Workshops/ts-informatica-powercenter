@@ -65,6 +65,7 @@ BEGIN
     FROM PAYMASTER_FILE
         LEFT JOIN PAY_PERIOD /* lookup: lkp_Pay_Period_Record_Date */
             ON PP_START_DTE <= in_HEADER_DATE AND PP_END_DTE >= in_HEADER_DATE
+    WHERE /* rtr_Paymaster_Records: PAYMASTER_TYPE_1 */ PYF_REC_NO_BLANK = '1'
     ;
 
     v_row_count := v_row_count + SQLROWCOUNT;
@@ -82,6 +83,9 @@ BEGIN
     FROM PAYMASTER_FILE
         LEFT JOIN PAY_PERIOD /* lookup: lkp_Pay_Period_Record_Date */
             ON PP_START_DTE <= in_HEADER_DATE AND PP_END_DTE >= in_HEADER_DATE
+    WHERE /* rtr_Paymaster_Records: PAYMASTER_HEADER */
+        (LENGTH(LTRIM(PYF_REC_NO_BLANK)) = 0 OR PYF_REC_NO_BLANK IS NULL)
+        AND TRY_TO_DATE(SUBSTR(PYF_REC_PPE_DATE,5,2)||'/'||SUBSTR(PYF_REC_PPE_DATE,7,2)||'/'||SUBSTR(PYF_REC_PPE_DATE,1,4), 'MM/DD/YYYY') IS NOT NULL
     ;
 
     v_row_count := v_row_count + SQLROWCOUNT;
@@ -114,6 +118,7 @@ BEGIN
     FROM PAYMASTER_FILE
         LEFT JOIN PAY_PERIOD /* lookup: lkp_Pay_Period_Record_Date */
             ON PP_START_DTE <= in_HEADER_DATE AND PP_END_DTE >= in_HEADER_DATE
+    WHERE /* rtr_Paymaster_Records: PAYMASTER_TYPE_2 */ PYF_REC_NO_BLANK = '2'
     ;
 
     v_row_count := v_row_count + SQLROWCOUNT;
@@ -146,6 +151,7 @@ BEGIN
     FROM PAYMASTER_FILE
         LEFT JOIN PAY_PERIOD /* lookup: lkp_Pay_Period_Record_Date */
             ON PP_START_DTE <= in_HEADER_DATE AND PP_END_DTE >= in_HEADER_DATE
+    WHERE /* rtr_Paymaster_Records: PAYMASTER_TYPE_3 */ PYF_REC_NO_BLANK = '3'
     ;
 
     v_row_count := v_row_count + SQLROWCOUNT;
