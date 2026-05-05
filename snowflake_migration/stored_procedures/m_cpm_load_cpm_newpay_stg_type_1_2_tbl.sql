@@ -82,24 +82,35 @@ BEGIN
        AND CPM_PM1_STG_TBL.PYF_EYE_ID_1 = CPM_YTD_DETAIL_STG_TBL.DYD_SSN_1
     WHERE CPM_PM1_STG_TBL.PP_END_YEAR = v_MAP_PP_END_YEAR
       AND CPM_PM1_STG_TBL.PP_NUM = v_MAP_PP_NUM
-      AND (ERROR_FLAG IS NULL OR ERROR_FLAG = FALSE)
+      /* exp_Determine_Errors: good records = all 3 lookups succeeded */
+      AND EXISTS (SELECT 1 FROM CPM_PAD_DETAIL_STG_TBL pad
+                  WHERE pad.PAD_SOC_SEC_NO = CPM_PM1_STG_TBL.PYF_EYE_ID_1
+                    AND pad.PP_END_YEAR = CPM_PM1_STG_TBL.PP_END_YEAR
+                    AND pad.PP_NUM = CPM_PM1_STG_TBL.PP_NUM)
+      AND EXISTS (SELECT 1 FROM CPM_MER_DETAIL_STG_TBL mer
+                  WHERE mer.MER_SSN = CPM_PM1_STG_TBL.PYF_EYE_ID_1
+                    AND mer.PP_END_YEAR = CPM_PM1_STG_TBL.PP_END_YEAR
+                    AND mer.PP_NUM = CPM_PM1_STG_TBL.PP_NUM)
+      AND PSEUDOSSN_TBL.PSEUDOSSN IS NOT NULL
     ;
 
     v_row_count := v_row_count + SQLROWCOUNT;
 
     -- ========================================
     -- Load target: ERROR_TBL
+    -- exp_Determine_Errors: error when PAD, MER, or PSEUDOSSN lookup fails
+    -- nrm_Errors normalizes 3 error messages into rows
     -- ========================================
     INSERT INTO ERROR_TBL (
         PROCESS_NAME, ERROR_MESSAGE, SOURCE_KEY, ERROR_DATE, PP_END_YEAR, PP_NUM
     )
     SELECT
-        PROCESS_NAME,
-        ERROR_MESSAGE,
-        SOURCE_KEY,
+        'SP_CPM_LOAD_CPM_NEWPAY_STG_TYPE_1_2_TBL' AS PROCESS_NAME,
+        err.ERROR_MESSAGE,
+        CPM_PM1_STG_TBL.PYF_EYE_ID_1 AS SOURCE_KEY,
         v_start_ts AS ERROR_DATE,
-        PP_END_YEAR,
-        PP_NUM
+        CPM_PM1_STG_TBL.PP_END_YEAR,
+        CPM_PM1_STG_TBL.PP_NUM
     FROM CPM_PM1_STG_TBL
     JOIN CPM_PM2_STG_TBL
         ON CPM_PM1_STG_TBL.PYF_EYE_ID_1 = CPM_PM2_STG_TBL.PYF_EYE_ID_2
@@ -107,14 +118,39 @@ BEGIN
        AND CPM_PM1_STG_TBL.PP_NUM = CPM_PM2_STG_TBL.PP_NUM
     LEFT JOIN PSEUDOSSN_TBL
         ON CPM_PM1_STG_TBL.PYF_EYE_ID_1 = PSEUDOSSN_TBL.PSEUDOSSN
-    LEFT JOIN CPM_YTD_DETAIL_STG_TBL
-        ON CPM_PM1_STG_TBL.PP_END_YEAR = CPM_YTD_DETAIL_STG_TBL.PP_END_YEAR
-       AND CPM_PM1_STG_TBL.PP_NUM = CPM_YTD_DETAIL_STG_TBL.PP_NUM
-       AND CPM_PM1_STG_TBL.PYF_EYE_ID_1 = CPM_YTD_DETAIL_STG_TBL.DYD_SSN_1
+    CROSS JOIN LATERAL (
+        SELECT msg AS ERROR_MESSAGE FROM (
+            SELECT CASE WHEN NOT EXISTS (
+                SELECT 1 FROM CPM_PAD_DETAIL_STG_TBL pad
+                WHERE pad.PAD_SOC_SEC_NO = CPM_PM1_STG_TBL.PYF_EYE_ID_1
+                  AND pad.PP_END_YEAR = CPM_PM1_STG_TBL.PP_END_YEAR
+                  AND pad.PP_NUM = CPM_PM1_STG_TBL.PP_NUM)
+            THEN 'PAD Record not found for SSN: ' || CPM_PM1_STG_TBL.PYF_EYE_ID_1 END AS msg
+            UNION ALL
+            SELECT CASE WHEN NOT EXISTS (
+                SELECT 1 FROM CPM_MER_DETAIL_STG_TBL mer
+                WHERE mer.MER_SSN = CPM_PM1_STG_TBL.PYF_EYE_ID_1
+                  AND mer.PP_END_YEAR = CPM_PM1_STG_TBL.PP_END_YEAR
+                  AND mer.PP_NUM = CPM_PM1_STG_TBL.PP_NUM)
+            THEN 'MER Record not found for SSN: ' || CPM_PM1_STG_TBL.PYF_EYE_ID_1 END
+            UNION ALL
+            SELECT CASE WHEN PSEUDOSSN_TBL.PSEUDOSSN IS NULL
+            THEN 'PSEUDO Record not found for SSN: ' || CPM_PM1_STG_TBL.PYF_EYE_ID_1 END
+        ) msgs WHERE msg IS NOT NULL
+    ) err
     WHERE CPM_PM1_STG_TBL.PP_END_YEAR = v_MAP_PP_END_YEAR
       AND CPM_PM1_STG_TBL.PP_NUM = v_MAP_PP_NUM
-      AND ERROR_FLAG = TRUE
-      AND ERROR_MESSAGE IS NOT NULL
+      AND (
+          NOT EXISTS (SELECT 1 FROM CPM_PAD_DETAIL_STG_TBL pad
+                      WHERE pad.PAD_SOC_SEC_NO = CPM_PM1_STG_TBL.PYF_EYE_ID_1
+                        AND pad.PP_END_YEAR = CPM_PM1_STG_TBL.PP_END_YEAR
+                        AND pad.PP_NUM = CPM_PM1_STG_TBL.PP_NUM)
+          OR NOT EXISTS (SELECT 1 FROM CPM_MER_DETAIL_STG_TBL mer
+                         WHERE mer.MER_SSN = CPM_PM1_STG_TBL.PYF_EYE_ID_1
+                           AND mer.PP_END_YEAR = CPM_PM1_STG_TBL.PP_END_YEAR
+                           AND mer.PP_NUM = CPM_PM1_STG_TBL.PP_NUM)
+          OR PSEUDOSSN_TBL.PSEUDOSSN IS NULL
+      )
     ;
 
     v_row_count := v_row_count + SQLROWCOUNT;

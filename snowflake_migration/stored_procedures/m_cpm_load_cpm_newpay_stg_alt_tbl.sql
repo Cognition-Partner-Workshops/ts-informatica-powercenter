@@ -45,15 +45,19 @@ BEGIN
         PROCESS_NAME, ERROR_MESSAGE, SOURCE_KEY, PP_END_YEAR, PP_NUM, ERROR_DATE
     )
     SELECT
-        PROCESS_NAME,
-        ERROR_MESSAGE,
-        SOURCE_KEY,
+        'SP_CPM_LOAD_CPM_NEWPAY_STG_ALT_TBL' AS PROCESS_NAME,
+        'Out of Allotments for ' || PYF_EYE_ID_PDT3 AS ERROR_MESSAGE,
+        PYF_EYE_ID_PDT3 AS SOURCE_KEY,
         PP_END_YEAR,
         PP_NUM,
         v_start_ts AS ERROR_DATE
     FROM CPM_PM3_STG_TBL
-    WHERE /* Filter: fil_Bad_Records */ ERROR_FLAG = TRUE
-      AND /* Filter: fil_Error_Message */ ERROR_MESSAGE IS NOT NULL
+    WHERE /* fil_Bad_Records: allotment_counter > 7 per exp_Determine_Allotments */
+        PYF_EYE_ID_PDT3 IN (
+            SELECT PYF_EYE_ID_PDT3 FROM CPM_PM3_STG_TBL
+            GROUP BY PYF_EYE_ID_PDT3 HAVING COUNT(*) > 7
+        )
+    GROUP BY PYF_EYE_ID_PDT3, PP_END_YEAR, PP_NUM
     ;
 
     v_row_count := v_row_count + SQLROWCOUNT;
@@ -84,7 +88,9 @@ BEGIN
         ALT_2_INST_ACCT_NO,
         -- ... and 31 more expressions
     FROM CPM_PM3_STG_TBL
-    WHERE /* Good records: negate error filter */ (ERROR_FLAG IS NULL OR ERROR_FLAG = FALSE)
+    /* All records go through the aggregator; error records are logged
+       separately above but still processed (overflow allotments merged
+       into allotment 4 per exp_Determine_Allotments logic) */
     ;
 
     v_row_count := v_row_count + SQLROWCOUNT;
