@@ -68,7 +68,7 @@ BEGIN
     v_log := v_log || 'Staging tables truncated. ';
 
     -- Clear error table for this run
-    DELETE FROM ERROR_TBL WHERE LOAD_DATE = CURRENT_DATE();
+    DELETE FROM ERROR_TBL WHERE ERROR_DATE = CURRENT_DATE();
 
     v_log := v_log || 'Error table cleared. ';
 

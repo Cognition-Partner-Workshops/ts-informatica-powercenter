@@ -338,10 +338,10 @@ LEAST(ABS(val), 99999.99) * SIGN(val)
 │  Step 7:  NEWPAY STG YTD_STATE     │  SP_CPM_LOAD_NEWPAY_STG_YTD_STATE
 │  Step 8:  NEWPAY STG TYPE 1/2      │  SP_CPM_LOAD_NEWPAY_STG_TYPE_1_2  ★
 │  Step 9:  PMR → NEWPAY             │  SP_CPM_LOAD_PMR_TO_NEWPAY
-│  Step 10: FDR → NEWPAY             │  SP_CPM_LOAD_FDR_TO_NEWPAY
-│  Step 11: NEWPAY STG DETAIL        │  SP_CPM_LOAD_NEWPAY_STG_DETAIL
-│  Step 12: NEWPAY STG TYPE 3        │  SP_CPM_LOAD_NEWPAY_STG_TYPE_3
-│  Step 13: NEWPAY STG TYPE 3 FDR    │  SP_CPM_LOAD_NEWPAY_STG_TYPE_3_FDR
+│  Step 10: NEWPAY STG TYPE 3 FDR    │  SP_CPM_LOAD_NEWPAY_STG_TYPE_3_FDR
+│  Step 11: FDR → NEWPAY             │  SP_CPM_LOAD_FDR_TO_NEWPAY
+│  Step 12: NEWPAY STG DETAIL        │  SP_CPM_LOAD_NEWPAY_STG_DETAIL
+│  Step 13: NEWPAY STG TYPE 3        │  SP_CPM_LOAD_NEWPAY_STG_TYPE_3
 │  Step 14: Message Counters         │  SP_CPM_BUILD_MESSAGE_COUNTERS
 └──────────────┬──────────────────────┘
                │
@@ -354,15 +354,15 @@ LEAST(ABS(val), 99999.99) * SIGN(val)
 
 ```
 Steps 2-5 (flat file staging) → independent, can run in parallel
-Step 6 (ALT)         depends on: Step 4 (PM3_STG from PMR)
-Step 7 (YTD_STATE)   depends on: Step 2 (YTD_STATE_STG)
-Step 8 (TYPE 1/2)    depends on: Steps 2,3,5,7 (YTD, MER, PAD, YTD_STATE)
-Step 9 (PMR→NEWPAY)  depends on: Steps 4 (PMR staging); LEFT JOINs TYPE_3 (optional)
-Step 10 (FDR→NEWPAY) depends on: Step 13 (TYPE_3_FDR staging)
-Step 11 (DETAIL)     depends on: Steps 9/10 (CPM_NEWPAY_TBL populated)
-Step 12 (TYPE 3)     depends on: Steps 6,8,11 (ALT, TYPE_1_2, DETAIL) + Steps 9/10 (NEWPAY_TBL)
-Step 13 (TYPE 3 FDR) depends on: Steps 6,8 (ALT, TYPE_1_2) + Steps 9/10 (NEWPAY_TBL)
-Step 14 (Counters)   depends on: All prior steps
+Step 6 (ALT)          depends on: Step 4 (PM3_STG from PMR)
+Step 7 (YTD_STATE)    depends on: Step 2 (YTD_STATE_STG)
+Step 8 (TYPE 1/2)     depends on: Steps 2,3,5,7 (YTD, MER, PAD, YTD_STATE)
+Step 9 (PMR→NEWPAY)   depends on: Step 4 (PMR staging); LEFT JOINs TYPE_3 (optional)
+Step 10 (TYPE 3 FDR)  depends on: Steps 6,8,9 (ALT, TYPE_1_2, CPM_NEWPAY_TBL)
+Step 11 (FDR→NEWPAY)  depends on: Step 10 (TYPE_3_FDR populated)
+Step 12 (DETAIL)      depends on: Steps 9/11 (CPM_NEWPAY_TBL fully populated)
+Step 13 (TYPE 3)      depends on: Steps 6,8,12 (ALT, TYPE_1_2, DETAIL) + Steps 9/11 (NEWPAY_TBL)
+Step 14 (Counters)    depends on: All prior steps
 ```
 
 ---

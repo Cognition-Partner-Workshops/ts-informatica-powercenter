@@ -28,10 +28,11 @@ CREATE STAGE IF NOT EXISTS CPM_FLAT_FILE_STAGE
 -- Original format: FIXED-WIDTH | VSAM | IBM Comp: N/A
 -- -----------------------------------------------------------------------
 
+-- Raw staging: single-column table holds unparsed VSAM lines.
+-- Downstream stored procedures (05-08) parse fields via SUBSTR and
+-- route records by RECORD_TYPE into typed staging tables.
 CREATE TABLE IF NOT EXISTS STG_YTD_FILE (
-    DFAS_YTD_HEADER                          VARCHAR(1050),
-    DFAS_YTD_DETAIL                          VARCHAR(1129),
-    DFAS_YTD_STATE                           VARCHAR(1052)
+    RAW_LINE                                 VARCHAR(4096)
 );
 
 -- File format for fixed-width VSAM file
@@ -66,8 +67,7 @@ FROM RAW_YTD_FILE;
 -- -----------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS STG_MER_FILE (
-    MER_LV_HDR_RECORD                        VARCHAR(700),
-    MER_LV_DETAIL_RECORD                     VARCHAR(768)
+    RAW_LINE                                 VARCHAR(4096)
 );
 
 -- File format for fixed-width VSAM file
@@ -137,10 +137,7 @@ FROM RAW_PAYMASTER_THREE;
 -- -----------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS STG_PAYMASTER_FILE (
-    WS_PAYMASTER_HEADER                      VARCHAR(256),
-    WS_PAYMASTER_RECORD_1                    VARCHAR(258),
-    WS_PAYMASTER_RECORD_2                    VARCHAR(263),
-    WS_PAYMASTER_RECORD_3                    VARCHAR(260)
+    RAW_LINE                                 VARCHAR(4096)
 );
 
 -- File format for fixed-width VSAM file
@@ -175,8 +172,7 @@ FROM RAW_PAYMASTER_FILE;
 -- -----------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS STG_PAD_FILE (
-    PAD_RECORD_HEADER                        VARCHAR(1400),
-    PAD_RECORD_DETAIL                        VARCHAR(1508)
+    RAW_LINE                                 VARCHAR(4096)
 );
 
 -- File format for fixed-width VSAM file
