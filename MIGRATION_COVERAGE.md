@@ -260,9 +260,81 @@ The `SP_CPM_ETL_MAIN` orchestrator preserves the original `wf_CPM` session execu
 
 ---
 
-## 12. Conclusion
+## 12. Schema-Level Validation Issues
+
+Beyond object-level structural coverage, deeper inspection reveals **SP-to-DDL column mismatches** that will cause runtime failures. These do not affect coverage counts (the procedures and tables exist) but indicate incomplete schema alignment.
+
+### Issue 1: STG Flat-File Tables Missing Parsed Columns (Critical — 4 procedures affected)
+
+**Impact:** Blocks Steps 2–5 of the ETL pipeline (all flat-file staging loads).
+
+The staging tables `STG_YTD_FILE`, `STG_MER_FILE`, `STG_PAYMASTER_FILE`, and `STG_PAD_FILE` in `stages/03_flat_file_stages.sql` each define only a single `RAW_LINE VARCHAR(4096)` column. However, the stored procedures that consume them reference typed columns that do not exist:
+
+| STG Table | SP Consumer | Missing Columns Referenced |
+|---|---|---|
+| `STG_YTD_FILE` | `SP_CPM_LOAD_YTD_STAGING` (05) | `RECORD_TYPE`, `HEADER_DATE`, `RECORD_COUNT`, `DYD_SSN_1`, `DYD_BASE_PAY`, `DYS_SSN`, `DYS_ST_CODE`, etc. |
+| `STG_MER_FILE` | `SP_CPM_LOAD_MER_STAGING` (06) | `RECORD_TYPE`, `HEADER_DATE`, `RECORD_COUNT`, `MER_SSN`, `MER_NAME`, `MER_AGENCY`, etc. |
+| `STG_PAYMASTER_FILE` | `SP_CPM_LOAD_PMR_STAGING` (07) | `RECORD_TYPE`, `HEADER_DATE`, `PYF_EYE_ID_1`, `PYF_EYE_NME`, `PYF_PAY_DET_CD`, etc. |
+| `STG_PAD_FILE` | `SP_CPM_LOAD_PAD_STAGING` (08) | `RECORD_TYPE`, `HEADER_DATE`, `PAD_SOC_SEC_NO`, `PAD_NAME`, `PAD_AGENCY`, etc. |
+
+**Root cause:** The stage file's `INSERT INTO STG_*` statements copy `RAW_LINE` verbatim from `RAW_*` tables without SUBSTR parsing. The STG tables need expanded schemas with all typed columns, or the SPs need to parse from `RAW_LINE` using SUBSTR.
+
+**Recommended fix:** Expand each STG table DDL to include the typed columns that the downstream SPs expect, and update the `INSERT INTO STG_*` statements to parse fixed-width fields from `RAW_LINE` using SUBSTR.
+
+### Issue 2: SP_CPM_LOAD_NEWPAY_STG_DETAIL Column Mismatch (High — 1 procedure)
+
+**Impact:** Blocks Step 12 of the ETL pipeline.
+
+`SP_CPM_LOAD_NEWPAY_STG_DETAIL` (`stored_procedures/11_sp_cpm_load_newpay_stg_detail.sql`) inserts columns that do not exist in the `CPM_NEWPAY_STG_DETAIL_TBL` DDL (`ddl/02_target_tables.sql:611–635`):
+
+| Column in SP INSERT | Exists in DDL? |
+|---|---|
+| `FED_TAX_MAR_STAT` | No (DDL has `ST_TAX_MAR_STAT` only) |
+| `FED_TAX_EXEMP` | No |
+| `PAY_CYCLE_IND` | No |
+| `LAST_UPDATED` | No |
+| `LOAD_DATE` | No |
+| `LOAD_ID` | No |
+
+Additionally, the SP references `n.PAY_CYCLE_IND` from `CPM_NEWPAY_TBL` which does not exist in that table's DDL either.
+
+**Recommended fix:** Either add the missing columns to the `CPM_NEWPAY_STG_DETAIL_TBL` DDL, or update the SP to only reference columns that exist in both the source and target schemas.
+
+### Issue 3: SP_CPM_LOAD_PMR_TO_NEWPAY Schema Mismatch (High — 1 procedure)
+
+**Impact:** Blocks Step 9 of the ETL pipeline; downstream Steps 10–14 depend on this data.
+
+`SP_CPM_LOAD_PMR_TO_NEWPAY` (`stored_procedures/15_sp_cpm_load_pmr_to_newpay.sql`) inserts transaction-level PM columns into `CPM_NEWPAY_TBL`, but `CPM_NEWPAY_TBL` is a 499-column person-level summary table with different column names:
+
+| Column in SP INSERT | Exists in CPM_NEWPAY_TBL DDL? |
+|---|---|
+| `PYF_EYE_NME` | No |
+| `PYF_ADJ_RSN_IDC` | No |
+| `PYF_ACTUAL_AMT` | No |
+| `PYF_HRS_SCD_AMT` | No |
+| `PYF_ITW_ADD` | No |
+| `PYF_ITW_MS` | No |
+| `PYF_DDU_PYE` | No |
+| `PYF_PAY_TAC_TYP` | No |
+| `PYF_EYE_ID_PDT3` | No |
+| `PFY_ID_BREAK_SSN` | No |
+| `LOAD_DATE` | No |
+| `LOAD_ID` | No |
+
+The SP also reads `pm1.PYF_ADJ_RSN_IDC`, `pm1.PYF_ACTUAL_AMT`, etc. from `CPM_PM1_STG_TBL`, but those are PM3 transaction-level columns that do not exist in the PM1 DDL.
+
+**Root cause:** The original mapping `m_CPM_Load_PMR_To_CPM_NEWPAY_TBL` joins PM1+PM2+PM3 data and produces person-level summary records. The SP appears to be loading raw transaction records instead of performing the join/aggregation logic. Either an intermediate transaction-level table is needed, or the SP must be restructured to map to the actual `CPM_NEWPAY_TBL` schema.
+
+---
+
+## 13. Conclusion
 
 The Informatica PowerCenter CPM folder migration to Snowflake achieves **96.6% structural coverage** (85 of 88 distinct objects). All data-processing logic — sources, targets, transformations, staging loads, and the orchestration workflow — has a Snowflake equivalent. The remaining gaps are:
 
 - **2 missing DDL definitions** for flat-file-to-table targets (`CPM_PAY_PERIOD_DATE_FILE`, `CPM_MESSAGE_FILE`) that are referenced by stored procedures but lack `CREATE TABLE` statements. These will cause runtime failures and should be added to `ddl/02_target_tables.sql`.
 - **1 unmigrated mapping** (`m_Generic_Mapping` / `s_CPM_Send_Counts`) for email notification, which is a non-data-processing utility step that can be replaced by Snowflake Alerts or external webhook integration.
+
+Additionally, **3 schema-level issues** (Section 12) will prevent successful runtime execution even where structural coverage exists:
+1. **4 STG flat-file tables** lack parsed columns needed by downstream SPs (blocks Steps 2–5)
+2. **SP_CPM_LOAD_NEWPAY_STG_DETAIL** references columns missing from `CPM_NEWPAY_STG_DETAIL_TBL` DDL (blocks Step 12)
+3. **SP_CPM_LOAD_PMR_TO_NEWPAY** writes transaction-level data to a person-level summary table with incompatible schema (blocks Step 9 and cascades to Steps 10–14)
