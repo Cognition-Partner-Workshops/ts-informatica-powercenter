@@ -1456,7 +1456,19 @@ CREATE TABLE IF NOT EXISTS CPM_NEWPAY_TBL (
     COMP_HRS_USED_CPP                        NUMBER(7,2),
     COMP_PAID_CPP                            NUMBER(7,2),
     TRAVEL_COMP_HRS_ERND_CPP                 NUMBER(7,2),
-    TRAVEL_COMP_HRS_USED_CPP                 NUMBER(7,2)
+    TRAVEL_COMP_HRS_USED_CPP                 NUMBER(7,2),
+    -- PM3 raw pay detail columns (populated by SP_CPM_LOAD_PMR_TO_NEWPAY,
+    -- consumed by TYPE_3/TYPE_3_FDR/DETAIL aggregation procedures)
+    PYF_EYE_NME                              VARCHAR(27),
+    PYF_ACTUAL_AMT                           NUMBER(9,2),
+    PYF_HRS_SCD_AMT                          NUMBER(9,2),
+    PYF_ADJ_RSN_IDC                          VARCHAR(1),
+    PYF_ITW_ADD                              NUMBER(5,0),
+    PYF_ITW_MS                               VARCHAR(1),
+    PYF_DDU_PYE                              VARCHAR(9),
+    PYF_PAY_TAC_TYP                          VARCHAR(5),
+    PYF_EYE_ID_PDT3                          VARCHAR(9),
+    PFY_ID_BREAK_SSN                         VARCHAR(9)
     ,CONSTRAINT PK_CPM_NEWPAY_TBL PRIMARY KEY (PP_END_YEAR, PP_NUM, DFAS_PSEUDO_SSN, LINE_TYPE)
 );
 

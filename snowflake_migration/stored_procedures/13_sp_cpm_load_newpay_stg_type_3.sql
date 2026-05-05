@@ -90,10 +90,7 @@ BEGIN
         COALESCE(SUM(CASE WHEN n.PYF_PAY_DET_CD = 'AA' THEN n.PYF_HRS_SCD_AMT END), 0) AS BASE_HRS,
 
         -- Line type
-        'T0001' AS LINE_TYPE,
-
-        CURRENT_DATE() AS LOAD_DATE,
-        'CPM_TYPE3_LOAD' AS LOAD_ID
+        'T0001' AS LINE_TYPE
 
     FROM CPM_NEWPAY_TBL n
     WHERE n.PP_END_YEAR = :P_PP_END_YEAR
@@ -119,8 +116,7 @@ BEGIN
         -- From ALT lookup
         CPP_ALT_TOT,
         -- From DETAIL lookup
-        FED_OPT_TAX_DED, ST_TAX_OPT_DED,
-        LOAD_DATE, LOAD_ID
+        FED_OPT_TAX_DED, ST_TAX_OPT_DED
     )
     SELECT
         a.PP_END_YEAR, a.PP_NUM, a.DFAS_PSEUDO_SSN,
@@ -147,8 +143,7 @@ BEGIN
         COALESCE(alt.CPP_ALT_TOT, 0),
         -- DETAIL tax overrides
         COALESCE(det.FED_OPT_TAX_DED, 0),
-        COALESCE(det.ST_TAX_OPT_DED, 0),
-        a.LOAD_DATE, a.LOAD_ID
+        COALESCE(det.ST_TAX_OPT_DED, 0)
     FROM TMP_TYPE_3_AGG a
     LEFT JOIN CPM_NEWPAY_STG_TYPE_1_2_TBL t12
         ON t12.PP_END_YEAR = a.PP_END_YEAR

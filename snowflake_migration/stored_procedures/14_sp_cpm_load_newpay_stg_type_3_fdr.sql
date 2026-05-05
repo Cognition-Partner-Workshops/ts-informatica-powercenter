@@ -118,8 +118,7 @@ BEGIN
         OCC_SERIES, DUTY_STATION, PAY_BASIS,
         ADJ_BASIC_PAY, LOCALITY_ADJ, TOTAL_PAY,
         -- From ALT lookup
-        CPP_ALT_TOT,
-        LOAD_DATE, LOAD_ID
+        CPP_ALT_TOT
     )
     SELECT
         a.PP_END_YEAR, a.PP_NUM, a.DFAS_PSEUDO_SSN, a.MP_POOL_DES,
@@ -148,8 +147,7 @@ BEGIN
         t12.OCC_SERIES, t12.DUTY_STATION, t12.PAY_BASIS,
         t12.ADJ_BASIC_PAY, t12.LOCALITY_ADJ, t12.TOTAL_PAY,
         -- ALT allotment total
-        COALESCE(alt.CPP_ALT_TOT, 0),
-        CURRENT_DATE(), 'CPM_FDR_LOAD'
+        COALESCE(alt.CPP_ALT_TOT, 0)
     FROM TMP_FDR_AGG a
     LEFT JOIN CPM_NEWPAY_STG_TYPE_1_2_TBL t12
         ON t12.PP_END_YEAR = a.PP_END_YEAR

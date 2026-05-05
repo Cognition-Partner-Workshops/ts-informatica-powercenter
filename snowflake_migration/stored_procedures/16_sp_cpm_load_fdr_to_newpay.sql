@@ -34,8 +34,7 @@ BEGIN
         CPP_FED_TAX, CPP_STATE_TAX, CPP_LOCAL_TAX,
         HRS_REG, HRS_OT_1,
         HRLY_RATE, OC_1217_TOT,
-        LINE_TYPE,
-        LOAD_DATE, LOAD_ID
+        LINE_TYPE
     )
     SELECT
         fdr.PP_END_YEAR,
@@ -66,9 +65,7 @@ BEGIN
             WHEN COALESCE(fdr.OC_1217_TOT, 0) != 0 THEN fdr.OC_1217_TOT
             ELSE COALESCE(reg.OC_1217_TOT, 0)
         END AS OC_1217_TOT,
-        fdr.LINE_TYPE,
-        CURRENT_DATE(),
-        'CPM_FDR_NEWPAY'
+        fdr.LINE_TYPE
     FROM CPM_NEWPAY_STG_TYPE_3_FDR_TBL fdr
     -- lkp_REG_REEMPLED: lookup REG record for same SSN
     LEFT JOIN CPM_NEWPAY_STG_TYPE_3_FDR_TBL reg
