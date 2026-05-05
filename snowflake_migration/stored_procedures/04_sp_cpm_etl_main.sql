@@ -102,16 +102,7 @@ BEGIN
     v_msg := v_msg || v_step || ': done. ';
 
     -- =========================================================================
-    -- Step 8: Load NEWPAY STG DETAIL (m_CPM_Load_CPM_NEWPAY_STG_DETAIL_TBL)
-    -- Flow: CPM_NEWPAY_TBL -> SQ -> exp_Initial -> exp_Format_Fields
-    --       -> agg_PYF_EYE_ID_PP_NUM -> exp_Final -> CPM_NEWPAY_STG_DETAIL_TBL
-    -- =========================================================================
-    v_step := 'Step 8: NEWPAY STG DETAIL';
-    CALL SP_CPM_LOAD_NEWPAY_STG_DETAIL(:P_PP_END_YEAR, :P_PP_NUM);
-    v_msg := v_msg || v_step || ': done. ';
-
-    -- =========================================================================
-    -- Step 9: Load NEWPAY STG TYPE 1/2 (m_CPM_Load_CPM_NEWPAY_STG_TYPE_1_2_TBL)
+    -- Step 8: Load NEWPAY STG TYPE 1/2 (m_CPM_Load_CPM_NEWPAY_STG_TYPE_1_2_TBL)
     -- Most complex mapping: 18 transforms, 1436 connectors
     -- Flow: CPM_PM1/PM2/PSEUDOSSN -> SQ -> exp_Initial
     --       JOIN CPM_YTD_DETAIL -> Lookups (MER, PAD, YTD_STATE)
@@ -119,47 +110,62 @@ BEGIN
     --       -> exp_Final -> CPM_NEWPAY_STG_TYPE_1_2_TBL
     --       Error path: exp_Determine_Errors -> fil_Bad_Records -> ERROR_TBL
     -- =========================================================================
-    v_step := 'Step 9: NEWPAY STG TYPE 1/2';
+    v_step := 'Step 8: NEWPAY STG TYPE 1/2';
     CALL SP_CPM_LOAD_NEWPAY_STG_TYPE_1_2(:P_PP_END_YEAR, :P_PP_NUM);
     v_msg := v_msg || v_step || ': done. ';
 
     -- =========================================================================
-    -- Step 10: Load NEWPAY STG TYPE 3 (m_CPM_Load_CPM_NEWPAY_STG_TYPE_3_TBL)
+    -- Step 9: Load PMR to NEWPAY (m_CPM_Load_PMR_To_CPM_NEWPAY_TBL)
+    -- Populates CPM_NEWPAY_TBL which Steps 10-12 depend on.
+    -- LEFT JOINs TYPE_3 (optional enrichment; NULL on first load is acceptable).
+    -- Flow: CPM_PM1/PM2/PM3_STG + PSEUDOSSN + CPM_NEWPAY_STG_TYPE_3
+    --       -> SQ -> exp_Initial -> exp_Convert -> exp_Final -> CPM_NEWPAY_TBL
+    -- =========================================================================
+    v_step := 'Step 9: PMR to NEWPAY';
+    CALL SP_CPM_LOAD_PMR_TO_NEWPAY(:P_PP_END_YEAR, :P_PP_NUM);
+    v_msg := v_msg || v_step || ': done. ';
+
+    -- =========================================================================
+    -- Step 10: Load FDR to NEWPAY (m_CPM_Load_FDR_CPM_NEWPAY_TBL)
+    -- Additional records into CPM_NEWPAY_TBL from FDR staging.
+    -- Flow: CPM_NEWPAY_STG_TYPE_3_FDR -> SQ -> exp_Initial -> exp_Convert
+    --       -> lkp_REG_REEMPLED -> exp_Final -> CPM_NEWPAY_TBL
+    -- =========================================================================
+    v_step := 'Step 10: FDR to NEWPAY';
+    CALL SP_CPM_LOAD_FDR_TO_NEWPAY(:P_PP_END_YEAR, :P_PP_NUM);
+    v_msg := v_msg || v_step || ': done. ';
+
+    -- =========================================================================
+    -- Step 11: Load NEWPAY STG DETAIL (m_CPM_Load_CPM_NEWPAY_STG_DETAIL_TBL)
+    -- Reads CPM_NEWPAY_TBL (populated by Steps 9/10 above).
+    -- Flow: CPM_NEWPAY_TBL -> SQ -> exp_Initial -> exp_Format_Fields
+    --       -> agg_PYF_EYE_ID_PP_NUM -> exp_Final -> CPM_NEWPAY_STG_DETAIL_TBL
+    -- =========================================================================
+    v_step := 'Step 11: NEWPAY STG DETAIL';
+    CALL SP_CPM_LOAD_NEWPAY_STG_DETAIL(:P_PP_END_YEAR, :P_PP_NUM);
+    v_msg := v_msg || v_step || ': done. ';
+
+    -- =========================================================================
+    -- Step 12: Load NEWPAY STG TYPE 3 (m_CPM_Load_CPM_NEWPAY_STG_TYPE_3_TBL)
+    -- Reads CPM_NEWPAY_TBL (populated by Steps 9/10).
     -- Flow: CPM_NEWPAY_TBL -> SQ -> exp_Initial -> agg_PYF_EYE_ID_PP_NUM
     --       -> Lookups (TYPE_1_2, ALT, DETAIL) -> exp_Format_Fields
     --       -> exp_Final -> CPM_NEWPAY_STG_TYPE_3_TBL
     -- =========================================================================
-    v_step := 'Step 10: NEWPAY STG TYPE 3';
+    v_step := 'Step 12: NEWPAY STG TYPE 3';
     CALL SP_CPM_LOAD_NEWPAY_STG_TYPE_3(:P_PP_END_YEAR, :P_PP_NUM);
     v_msg := v_msg || v_step || ': done. ';
 
     -- =========================================================================
-    -- Step 11: Load NEWPAY STG TYPE 3 FDR (m_CPM_Load_CPM_NEWPAY_STG_TYPE_3_FDR_TBL)
+    -- Step 13: Load NEWPAY STG TYPE 3 FDR (m_CPM_Load_CPM_NEWPAY_STG_TYPE_3_FDR_TBL)
+    -- Reads CPM_NEWPAY_TBL (populated by Steps 9/10).
     -- Flow: CPM_NEWPAY_TBL -> SQ -> exp_Initial -> exp_Set_REEMP_ANN_CDE
     --       -> agg_PYF_EYE_ID_PP_NUM -> Lookups (TYPE_1_2, ALT)
     --       -> exp_Format_Fields -> exp_GEN_SEQ_NUMBER
     --       -> exp_Final -> CPM_NEWPAY_STG_TYPE_3_FDR_TBL
     -- =========================================================================
-    v_step := 'Step 11: NEWPAY STG TYPE 3 FDR';
+    v_step := 'Step 13: NEWPAY STG TYPE 3 FDR';
     CALL SP_CPM_LOAD_NEWPAY_STG_TYPE_3_FDR(:P_PP_END_YEAR, :P_PP_NUM);
-    v_msg := v_msg || v_step || ': done. ';
-
-    -- =========================================================================
-    -- Step 12: Load PMR to NEWPAY (m_CPM_Load_PMR_To_CPM_NEWPAY_TBL)
-    -- Flow: CPM_PM1/PM2/PM3_STG + PSEUDOSSN + CPM_NEWPAY_STG_TYPE_3
-    --       -> SQ -> exp_Initial -> exp_Convert -> exp_Final -> CPM_NEWPAY_TBL
-    -- =========================================================================
-    v_step := 'Step 12: PMR to NEWPAY';
-    CALL SP_CPM_LOAD_PMR_TO_NEWPAY(:P_PP_END_YEAR, :P_PP_NUM);
-    v_msg := v_msg || v_step || ': done. ';
-
-    -- =========================================================================
-    -- Step 13: Load FDR to NEWPAY (m_CPM_Load_FDR_CPM_NEWPAY_TBL)
-    -- Flow: CPM_NEWPAY_STG_TYPE_3_FDR -> SQ -> exp_Initial -> exp_Convert
-    --       -> lkp_REG_REEMPLED -> exp_Final -> CPM_NEWPAY_TBL
-    -- =========================================================================
-    v_step := 'Step 13: FDR to NEWPAY';
-    CALL SP_CPM_LOAD_FDR_TO_NEWPAY(:P_PP_END_YEAR, :P_PP_NUM);
     v_msg := v_msg || v_step || ': done. ';
 
     -- =========================================================================

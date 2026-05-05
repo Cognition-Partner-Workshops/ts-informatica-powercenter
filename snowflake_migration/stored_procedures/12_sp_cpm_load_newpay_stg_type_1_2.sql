@@ -184,11 +184,10 @@ BEGIN
     -- Step 2: Log errors for missing PAD/MER/PSEUDO records
     -- Mirrors: exp_Determine_Errors -> fil_Bad_Records -> ERROR_TBL
     INSERT INTO ERROR_TBL (
-        ERROR_DATE, ERROR_MAPPING, ERROR_MESSAGE,
-        SRC_KEY, PP_END_YEAR, PP_NUM, LOAD_DATE, LOAD_ID
+        PROCESS_NAME, ERROR_MESSAGE,
+        SOURCE_KEY, ERROR_DATE, PP_END_YEAR, PP_NUM
     )
     SELECT
-        CURRENT_TIMESTAMP(),
         'SP_CPM_LOAD_NEWPAY_STG_TYPE_1_2',
         CASE
             WHEN ERROR_FLAG_PAD THEN 'PAD Record not found for SSN: ' || PYF_EYE_ID_1
@@ -196,10 +195,9 @@ BEGIN
             WHEN ERROR_FLAG_PSEUDO THEN 'PSEUDO Record not found for SSN: ' || PYF_EYE_ID_1
         END,
         PYF_EYE_ID_1,
-        PP_END_YEAR,
-        PP_NUM,
         CURRENT_DATE(),
-        'CPM_TYPE12_LOAD'
+        PP_END_YEAR,
+        PP_NUM
     FROM TMP_TYPE_1_2_JOINED
     WHERE ERROR_FLAG_PAD OR ERROR_FLAG_MER OR ERROR_FLAG_PSEUDO;
 

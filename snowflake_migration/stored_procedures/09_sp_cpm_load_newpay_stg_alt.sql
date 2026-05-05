@@ -129,18 +129,16 @@ BEGIN
 
     -- Error handling: Log records where allotment count exceeds 10
     INSERT INTO ERROR_TBL (
-        ERROR_DATE, ERROR_MAPPING, ERROR_MESSAGE,
-        SRC_KEY, PP_END_YEAR, PP_NUM, LOAD_DATE, LOAD_ID
+        PROCESS_NAME, ERROR_MESSAGE,
+        SOURCE_KEY, ERROR_DATE, PP_END_YEAR, PP_NUM
     )
     SELECT
-        CURRENT_TIMESTAMP(),
         'SP_CPM_LOAD_NEWPAY_STG_ALT',
         'Employee has more than 10 allotments: ' || PYF_EYE_ID_PDT3,
         PYF_EYE_ID_PDT3,
-        PP_END_YEAR,
-        PP_NUM,
         CURRENT_DATE(),
-        'CPM_ALT_LOAD'
+        PP_END_YEAR,
+        PP_NUM
     FROM TMP_ALLOTMENT_NUMBERED
     WHERE ALLOTMENT_NUM > 10
     GROUP BY PYF_EYE_ID_PDT3, PP_END_YEAR, PP_NUM;
