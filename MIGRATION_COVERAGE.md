@@ -325,6 +325,70 @@ The SP also reads `pm1.PYF_ADJ_RSN_IDC`, `pm1.PYF_ACTUAL_AMT`, etc. from `CPM_PM
 
 **Root cause:** The original mapping `m_CPM_Load_PMR_To_CPM_NEWPAY_TBL` joins PM1+PM2+PM3 data and produces person-level summary records. The SP appears to be loading raw transaction records instead of performing the join/aggregation logic. Either an intermediate transaction-level table is needed, or the SP must be restructured to map to the actual `CPM_NEWPAY_TBL` schema.
 
+### Issue 4: SP_CPM_LOAD_PMR_STAGING — PM1 INSERT Uses PM3 Columns (High — 1 procedure)
+
+**Impact:** Blocks Step 4 of the ETL pipeline (PMR staging load).
+
+`SP_CPM_LOAD_PMR_STAGING` (`stored_procedures/07_sp_cpm_load_pmr_staging.sql:40–47`) inserts into `CPM_PM1_STG_TBL` with 12 columns that do not exist in the DDL (`ddl/02_target_tables.sql:649–688`):
+
+| Column in SP INSERT | Exists in CPM_PM1_STG_TBL DDL? |
+|---|---|
+| `PYF_PAY_DET_CD` | No (PM3 column) |
+| `PYF_ADJ_RSN_IDC` | No (PM3 column) |
+| `PYF_ACTUAL_AMT` | No (PM3 column) |
+| `PYF_ITW_ADD` | No (PM3 column) |
+| `PYF_ITW_MS` | No (PM3 column) |
+| `PYF_DDU_PYE` | No (PM3 column) |
+| `PYF_HRS_SCD_AMT` | No (PM3 column) |
+| `PYF_EYE_ID_PDT3` | No (PM3 column) |
+| `PFY_ID_BREAK_SSN` | No (PM3 column) |
+| `PYF_PAY_TAC_TYP` | No (PM3 column) |
+| `LOAD_DATE` | No |
+| `LOAD_ID` | No |
+
+The actual PM1 DDL has personnel-record columns: `PYF_PMT_MET_CD`, `PYF_FIN_ORG_RTN`, `PYF_SRY_BSE_ANL`, `PYF_ADR_STR_1`, etc. The INSERT column list needs to map to the actual PM1 schema.
+
+### Issue 5: SP_CPM_LOAD_PMR_STAGING — PM2 INSERT Uses Fabricated Columns (High — 1 procedure)
+
+**Impact:** Blocks Step 4 of the ETL pipeline (same procedure as Issue 4).
+
+The PM2 INSERT in `SP_CPM_LOAD_PMR_STAGING` (`stored_procedures/07_sp_cpm_load_pmr_staging.sql:61–68`) specifies 18 columns that do not exist in `CPM_PM2_STG_TBL` (`ddl/02_target_tables.sql:736–781`):
+
+| Column in SP INSERT | Exists in CPM_PM2_STG_TBL DDL? |
+|---|---|
+| `PYF_EYE_ID_1` | No (PM2 has `PYF_EYE_ID_2`) |
+| `PYF_PAY_PLAN` | No |
+| `PYF_GRADE` | No |
+| `PYF_STEP` | No |
+| `PYF_OCC_SERIES` | No |
+| `PYF_DUTY_STATION` | No |
+| `PYF_PAY_BASIS` | No |
+| `PYF_FLSA_CAT` | No |
+| `PYF_WORK_SCHEDULE` | No |
+| `PYF_APPT_TYPE` | No |
+| `PYF_RETIRE_PLAN` | No |
+| `PYF_FEGLI` | No |
+| `PYF_SCD_LEAVE` | No |
+| `PYF_ADJ_BASIC_PAY` | No |
+| `PYF_LOCALITY_ADJ` | No |
+| `PYF_TOTAL_PAY` | No |
+| `LOAD_DATE` | No |
+| `LOAD_ID` | No |
+
+The actual PM2 DDL has columns: `PYF_EYE_ID_2`, `PYF_AGY_CD`, `PYF_SON`, `PYF_LOC_ADJ`, `PYF_BSC_PAY`, `PYF_BSC_OT_RAT`, etc.
+
+### Issue 6: SP_CPM_LOAD_YTD_STAGING — Target Column Mismatches (High — 3 INSERT statements)
+
+**Impact:** Blocks Step 2 of the ETL pipeline (YTD staging load).
+
+`SP_CPM_LOAD_YTD_STAGING` (`stored_procedures/05_sp_cpm_load_ytd_staging.sql`) has column mismatches in all three INSERT statements:
+
+**6a. CPM_YTD_HEADER_STG_TBL** (lines 36–38): SP uses `HEADER_DATE`, `RECORD_COUNT`, `LOAD_DATE`, `LOAD_ID` — DDL (`ddl/02_target_tables.sql:60–69`) has `DFAS_YTD_FILE_NAME`, `DFAS_YTD_DB_NAME`, `DFAS_YTD_PPEND_DATE`, `DFAS_YTD_DATE_OF_FILE` instead.
+
+**6b. CPM_YTD_DETAIL_STG_TBL** (lines 55–73): SP uses `DYD_HOLIDAY_PAY`, `DYD_HAZ_DUTY_PAY`, `DYD_ENV_DIF_PAY`, `DYD_POST_DIF_PAY`, `DYD_FICA_HI`, `DYD_OASDI`, `DYD_FED_TAX`, `DYD_ST_TAX`, `DYD_LOCAL_TAX`, `LOAD_DATE`, `LOAD_ID` — these columns are not in the DDL (`ddl/02_target_tables.sql:85–193`).
+
+**6c. CPM_YTD_STATE_STG_TBL** (lines 76–88): SP uses `DYS_SSN`, `DYS_ST_CODE`, `DYS_ST_WAGES`, `DYS_ST_TAX`, `LOAD_DATE`, `LOAD_ID` — DDL (`ddl/02_target_tables.sql:72–82`) has `DYD_SSN_2`, `DYD_STATE_TAX_CODE`, `DYD_STATE_TAX_DEDUC`, `DYD_PAY_SUB_STATE_TAX` instead.
+
 ---
 
 ## 13. Conclusion
@@ -334,7 +398,10 @@ The Informatica PowerCenter CPM folder migration to Snowflake achieves **96.6% s
 - **2 missing DDL definitions** for flat-file-to-table targets (`CPM_PAY_PERIOD_DATE_FILE`, `CPM_MESSAGE_FILE`) that are referenced by stored procedures but lack `CREATE TABLE` statements. These will cause runtime failures and should be added to `ddl/02_target_tables.sql`.
 - **1 unmigrated mapping** (`m_Generic_Mapping` / `s_CPM_Send_Counts`) for email notification, which is a non-data-processing utility step that can be replaced by Snowflake Alerts or external webhook integration.
 
-Additionally, **3 schema-level issues** (Section 12) will prevent successful runtime execution even where structural coverage exists:
+Additionally, **6 schema-level issues** (Section 12) will prevent successful runtime execution even where structural coverage exists:
 1. **4 STG flat-file tables** lack parsed columns needed by downstream SPs (blocks Steps 2–5)
 2. **SP_CPM_LOAD_NEWPAY_STG_DETAIL** references columns missing from `CPM_NEWPAY_STG_DETAIL_TBL` DDL (blocks Step 12)
 3. **SP_CPM_LOAD_PMR_TO_NEWPAY** writes transaction-level data to a person-level summary table with incompatible schema (blocks Step 9 and cascades to Steps 10–14)
+4. **SP_CPM_LOAD_PMR_STAGING** PM1 INSERT uses PM3 pay-detail columns instead of PM1 personnel-record columns (blocks Step 4)
+5. **SP_CPM_LOAD_PMR_STAGING** PM2 INSERT uses fabricated column names that don't exist in `CPM_PM2_STG_TBL` DDL (blocks Step 4)
+6. **SP_CPM_LOAD_YTD_STAGING** all 3 INSERT statements reference columns that don't match their target DDLs (blocks Step 2)
