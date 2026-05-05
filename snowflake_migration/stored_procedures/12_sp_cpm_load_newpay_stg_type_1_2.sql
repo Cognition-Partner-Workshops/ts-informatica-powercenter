@@ -61,9 +61,18 @@ BEGIN
             ELSE NULL
         END AS FIRST_NAME,
 
-        -- FIR_NAME_1: first char of first name
-        -- CODE_CONSL: second char of first name
-        -- MID_INIT: first char after second space
+        -- MID_INIT: first char after second space in PYF_EYE_NME
+        CASE
+            WHEN POSITION(' ' IN pm1.PYF_EYE_NME) > 0
+                 AND POSITION(' ' IN SUBSTR(pm1.PYF_EYE_NME,
+                        POSITION(' ' IN pm1.PYF_EYE_NME) + 1)) > 0
+            THEN SUBSTR(pm1.PYF_EYE_NME,
+                    POSITION(' ' IN pm1.PYF_EYE_NME)
+                    + POSITION(' ' IN SUBSTR(pm1.PYF_EYE_NME,
+                        POSITION(' ' IN pm1.PYF_EYE_NME) + 1))
+                    + 1, 1)
+            ELSE ' '
+        END AS MID_INIT,
 
         -- PM2 fields (Type 2 record data)
         pm2.PYF_PAY_PLAN,
@@ -127,12 +136,11 @@ BEGIN
         mer.MER_TOTAL_PAY AS MER_TOTAL_PAY,
         mer.MER_ANNUAL_LEAVE_BAL,
 
-        -- Lookup: CPM_NEWPAY_STG_YTD_STATE_TBL
-        ys.YTD_ST_1_CODE, ys.YTD_ST_1_WAGES, ys.YTD_ST_1_TAX,
-        ys.YTD_ST_2_CODE, ys.YTD_ST_2_WAGES, ys.YTD_ST_2_TAX,
-        ys.YTD_ST_3_CODE, ys.YTD_ST_3_WAGES, ys.YTD_ST_3_TAX,
-        ys.YTD_ST_4_CODE, ys.YTD_ST_4_WAGES, ys.YTD_ST_4_TAX,
-        ys.YTD_ST_5_CODE, ys.YTD_ST_5_WAGES, ys.YTD_ST_5_TAX,
+        -- Lookup: CPM_NEWPAY_STG_YTD_STATE_TBL (4 states per DDL)
+        ys.YTD_STATE_1, ys.YTD_ST_TX_1_CDE, ys.YTD_ST_TX_1_DED, ys.YTD_ST_TX_1_GRS,
+        ys.YTD_STATE_2, ys.YTD_ST_TX_2_CDE, ys.YTD_ST_TX_2_DED, ys.YTD_ST_TX_2_GRS,
+        ys.YTD_STATE_3, ys.YTD_ST_TX_3_CDE, ys.YTD_ST_TX_3_DED, ys.YTD_ST_TX_3_GRS,
+        ys.YTD_STATE_4, ys.YTD_ST_TX_4_CDE, ys.YTD_ST_TX_4_DED, ys.YTD_ST_TX_4_GRS,
 
         -- YTD Detail join (Detail Outer Join)
         ytd.DYD_BASE_PAY,
@@ -182,24 +190,40 @@ BEGIN
       AND pm1.PP_NUM = :P_PP_NUM;
 
     -- Step 2: Log errors for missing PAD/MER/PSEUDO records
-    -- Mirrors: exp_Determine_Errors -> fil_Bad_Records -> ERROR_TBL
+    -- Mirrors: exp_Determine_Errors -> fil_Bad_Records -> nrm_Errors -> ERROR_TBL
+    -- Use separate INSERTs so all error types are logged per employee
     INSERT INTO ERROR_TBL (
         PROCESS_NAME, ERROR_MESSAGE,
         SOURCE_KEY, ERROR_DATE, PP_END_YEAR, PP_NUM
     )
     SELECT
         'SP_CPM_LOAD_NEWPAY_STG_TYPE_1_2',
-        CASE
-            WHEN ERROR_FLAG_PAD THEN 'PAD Record not found for SSN: ' || PYF_EYE_ID_1
-            WHEN ERROR_FLAG_MER THEN 'MER Record not found for SSN: ' || PYF_EYE_ID_1
-            WHEN ERROR_FLAG_PSEUDO THEN 'PSEUDO Record not found for SSN: ' || PYF_EYE_ID_1
-        END,
-        PYF_EYE_ID_1,
-        CURRENT_DATE(),
-        PP_END_YEAR,
-        PP_NUM
+        'PAD Record not found for SSN: ' || PYF_EYE_ID_1,
+        PYF_EYE_ID_1, CURRENT_DATE(), PP_END_YEAR, PP_NUM
     FROM TMP_TYPE_1_2_JOINED
-    WHERE ERROR_FLAG_PAD OR ERROR_FLAG_MER OR ERROR_FLAG_PSEUDO;
+    WHERE ERROR_FLAG_PAD;
+
+    INSERT INTO ERROR_TBL (
+        PROCESS_NAME, ERROR_MESSAGE,
+        SOURCE_KEY, ERROR_DATE, PP_END_YEAR, PP_NUM
+    )
+    SELECT
+        'SP_CPM_LOAD_NEWPAY_STG_TYPE_1_2',
+        'MER Record not found for SSN: ' || PYF_EYE_ID_1,
+        PYF_EYE_ID_1, CURRENT_DATE(), PP_END_YEAR, PP_NUM
+    FROM TMP_TYPE_1_2_JOINED
+    WHERE ERROR_FLAG_MER;
+
+    INSERT INTO ERROR_TBL (
+        PROCESS_NAME, ERROR_MESSAGE,
+        SOURCE_KEY, ERROR_DATE, PP_END_YEAR, PP_NUM
+    )
+    SELECT
+        'SP_CPM_LOAD_NEWPAY_STG_TYPE_1_2',
+        'PSEUDO Record not found for SSN: ' || PYF_EYE_ID_1,
+        PYF_EYE_ID_1, CURRENT_DATE(), PP_END_YEAR, PP_NUM
+    FROM TMP_TYPE_1_2_JOINED
+    WHERE ERROR_FLAG_PSEUDO;
 
     -- Step 3: Insert valid records into CPM_NEWPAY_STG_TYPE_1_2_TBL
     -- Includes exp_Convert_TYPE_1_PAD_MER transformations (name parsing,
@@ -218,13 +242,11 @@ BEGIN
         YTD_BASE_PAY, YTD_OT_PAY, YTD_ND_PAY, YTD_SD_PAY,
         YTD_HOLIDAY_PAY, YTD_HAZ_PAY, YTD_ENV_PAY, YTD_POST_PAY,
         YTD_FICA_HI, YTD_OASDI, YTD_FED_TAX, YTD_ST_TAX, YTD_LOCAL_TAX,
-        -- State tax details from YTD_STATE lookup
-        YTD_ST_1_CODE, YTD_ST_1_WAGES, YTD_ST_1_TAX,
-        YTD_ST_2_CODE, YTD_ST_2_WAGES, YTD_ST_2_TAX,
-        YTD_ST_3_CODE, YTD_ST_3_WAGES, YTD_ST_3_TAX,
-        YTD_ST_4_CODE, YTD_ST_4_WAGES, YTD_ST_4_TAX,
-        YTD_ST_5_CODE, YTD_ST_5_WAGES, YTD_ST_5_TAX,
-        LOAD_DATE, LOAD_ID
+        -- State tax details from YTD_STATE lookup (4 states per DDL)
+        YTD_STATE_1, YTD_ST_TX_1_CDE, YTD_ST_TX_1_DED, YTD_ST_TX_1_GRS,
+        YTD_STATE_2, YTD_ST_TX_2_CDE, YTD_ST_TX_2_DED, YTD_ST_TX_2_GRS,
+        YTD_STATE_3, YTD_ST_TX_3_CDE, YTD_ST_TX_3_DED, YTD_ST_TX_3_GRS,
+        YTD_STATE_4, YTD_ST_TX_4_CDE, YTD_ST_TX_4_DED, YTD_ST_TX_4_GRS
     )
     SELECT
         t.PP_END_YEAR,
@@ -232,12 +254,7 @@ BEGIN
         t.PYF_EYE_ID_1,
         t.LAST_NAME,
         t.FIRST_NAME,
-        -- MID_INIT: char after second space in name
-        CASE
-            WHEN POSITION(' ' IN t.FIRST_NAME) > 0
-            THEN SUBSTR(t.FIRST_NAME, POSITION(' ' IN t.FIRST_NAME) + 1, 1)
-            ELSE ' '
-        END,
+        t.MID_INIT,
         -- FIR_NAME_1: first char
         COALESCE(NULLIF(SUBSTR(t.FIRST_NAME, 1, 1), ''), ' '),
         -- CODE_CONSL: second char
@@ -283,15 +300,11 @@ BEGIN
         COALESCE(t.DYD_ST_TAX, 0),
         COALESCE(t.DYD_LOCAL_TAX, 0),
 
-        -- YTD State tax details
-        t.YTD_ST_1_CODE, COALESCE(t.YTD_ST_1_WAGES, 0), COALESCE(t.YTD_ST_1_TAX, 0),
-        t.YTD_ST_2_CODE, COALESCE(t.YTD_ST_2_WAGES, 0), COALESCE(t.YTD_ST_2_TAX, 0),
-        t.YTD_ST_3_CODE, COALESCE(t.YTD_ST_3_WAGES, 0), COALESCE(t.YTD_ST_3_TAX, 0),
-        t.YTD_ST_4_CODE, COALESCE(t.YTD_ST_4_WAGES, 0), COALESCE(t.YTD_ST_4_TAX, 0),
-        t.YTD_ST_5_CODE, COALESCE(t.YTD_ST_5_WAGES, 0), COALESCE(t.YTD_ST_5_TAX, 0),
-
-        CURRENT_DATE(),
-        'CPM_TYPE12_LOAD'
+        -- YTD State tax details (4 states per DDL)
+        t.YTD_STATE_1, COALESCE(t.YTD_ST_TX_1_CDE, 0), COALESCE(t.YTD_ST_TX_1_DED, 0), COALESCE(t.YTD_ST_TX_1_GRS, 0),
+        t.YTD_STATE_2, COALESCE(t.YTD_ST_TX_2_CDE, 0), COALESCE(t.YTD_ST_TX_2_DED, 0), COALESCE(t.YTD_ST_TX_2_GRS, 0),
+        t.YTD_STATE_3, COALESCE(t.YTD_ST_TX_3_CDE, 0), COALESCE(t.YTD_ST_TX_3_DED, 0), COALESCE(t.YTD_ST_TX_3_GRS, 0),
+        t.YTD_STATE_4, COALESCE(t.YTD_ST_TX_4_CDE, 0), COALESCE(t.YTD_ST_TX_4_DED, 0), COALESCE(t.YTD_ST_TX_4_GRS, 0)
     FROM TMP_TYPE_1_2_JOINED t
     WHERE NOT (t.ERROR_FLAG_PAD OR t.ERROR_FLAG_MER OR t.ERROR_FLAG_PSEUDO);
 
