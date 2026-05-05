@@ -462,7 +462,22 @@ graph LR
 | 2 | **Per-step continue-on-failure not implemented** — PowerCenter allows `s_CPM_Load_CPM_NEWPAY_STG_TYPE_3_FDR_TBL` to fail without aborting the workflow (`FAIL_PARENT=NO`). Snowflake's single `EXCEPTION` block halts on any failure. | MEDIUM | Wrap the TYPE_3_FDR call in a nested `BEGIN...EXCEPTION...END` block within `SP_CPM_ETL_MAIN` to allow continuation on failure, mirroring the `FAIL_PARENT=NO` behavior. |
 | 3 | **File transfer scripts not migrated** — 7 SFTP transfer scripts that deliver output files to agency-specific directories on `m1csv301.hhs.gov` have no Snowflake equivalent. | MEDIUM | Implement file delivery via Snowflake external functions calling an AWS Lambda/Azure Function for SFTP, or use a Snowflake-native data sharing mechanism. |
 
-### 10.2 Ordering Improvements (Snowflake is Correct)
+### 10.2 Runtime DDL Mismatches (Stored Procedure Bugs)
+
+Static analysis of the stored procedures against the DDL in `02_target_tables.sql` reveals three column-mismatch bugs that will cause runtime failures:
+
+| # | Procedure | Issue | Affected Steps | Severity |
+|---|---|---|---|---|
+| 1 | `SP_CPM_LOAD_PMR_TO_NEWPAY` (Step 9) | INSERT references 11 columns (`PYF_EYE_NME`, `PYF_ADJ_RSN_IDC`, `PYF_ACTUAL_AMT`, `PYF_HRS_SCD_AMT`, `PYF_ITW_ADD`, `PYF_ITW_MS`, `PYF_DDU_PYE`, `PYF_PAY_TAC_TYP`, `PYF_EYE_ID_PDT3`, `PFY_ID_BREAK_SSN`, `LOAD_DATE`, `LOAD_ID`) that do not exist in `CPM_NEWPAY_TBL` DDL. These are `CPM_PM3_STG_TBL` columns. Failure at Step 9 blocks all downstream steps (10–14). | Steps 9–14 | **CRITICAL** |
+| 2 | `SP_CPM_LOAD_NEWPAY_STG_TYPE_3` (Step 13) | Queries `CPM_NEWPAY_TBL` referencing `PYF_ACTUAL_AMT`, `PYF_ADJ_RSN_IDC`, `PYF_HRS_SCD_AMT` — columns from `CPM_PM3_STG_TBL`, not present in `CPM_NEWPAY_TBL`. | Step 13 | **CRITICAL** |
+| 3 | `SP_CPM_LOAD_NEWPAY_STG_TYPE_3_FDR` (Step 10) | `SELECT n.*` from `CPM_NEWPAY_TBL` in CTAS produces duplicate column names (`MP_POOL_DES`, `ADJ_NO`, `LINE_TYPE`, `REEMP_ANN_CDE`) because these already exist in `CPM_NEWPAY_TBL` and are also defined as computed aliases. Snowflake CTAS rejects duplicate column names. | Step 10 | **CRITICAL** |
+
+**Root cause:** The `CPM_NEWPAY_TBL` DDL defines a ~499-column aggregate table, but several stored procedures treat it as if it contains raw PM3-level detail columns. Either the DDL needs to be extended with the missing detail columns, or the stored procedures need to reference `CPM_PM3_STG_TBL` directly.
+
+**Recommendation:** Review the original PowerCenter mapping `m_CPM_Load_PMR_To_CPM_NEWPAY_TBL` to determine the correct target column mapping. The procedure likely needs to be rewritten to map PM1/PM2/PM3 staging data into the aggregate summary columns of `CPM_NEWPAY_TBL`.
+
+### 10.3 Ordering Improvements (Snowflake is Correct)
+
 
 | # | Change | Rationale |
 |---|---|---|
@@ -470,7 +485,7 @@ graph LR
 | 2 | PMR→NEWPAY moved from PC position 13 to SF position 9 | Enables `CPM_NEWPAY_TBL` to be available for TYPE_3_FDR, FDR→NEWPAY, DETAIL, and TYPE_3. The LEFT JOIN on TYPE_3 (not yet populated) is handled gracefully with NULLs. |
 | 3 | Staging loads reordered | No functional impact — all four staging loads are independent. Future optimization: run in parallel with Snowflake Tasks. |
 
-### 10.3 Enhancement Opportunities
+### 10.4 Enhancement Opportunities
 
 | # | Opportunity | Effort | Impact |
 |---|---|---|---|
