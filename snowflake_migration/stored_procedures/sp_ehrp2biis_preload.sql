@@ -71,7 +71,7 @@ BEGIN
 EXCEPTION
     WHEN OTHER THEN
         INSERT INTO ERROR_TBL (PROCESS_NAME, ERROR_MESSAGE, ERROR_DATE)
-            VALUES ('SP_EHRP2BIIS_PRELOAD', 'Failed at step ' || v_step || ': ' || SQLERRM, CURRENT_TIMESTAMP());
+            VALUES ('SP_EHRP2BIIS_PRELOAD', LEFT('Failed at step ' || v_step || ': ' || SQLERRM, 200), CURRENT_TIMESTAMP());
         RAISE;
 END;
 $$;

@@ -137,7 +137,7 @@ BEGIN
 EXCEPTION
     WHEN OTHER THEN
         INSERT INTO ERROR_TBL (PROCESS_NAME, ERROR_MESSAGE, ERROR_DATE)
-            VALUES ('SP_CPM_ETL_ORCHESTRATOR', 'Failed at step ' || v_step || ': ' || SQLERRM, CURRENT_TIMESTAMP());
+            VALUES ('SP_CPM_ETL_ORCHESTRATOR', LEFT('Failed at step ' || v_step || ': ' || SQLERRM, 200), CURRENT_TIMESTAMP());
         RAISE;
 END;
 $$;
