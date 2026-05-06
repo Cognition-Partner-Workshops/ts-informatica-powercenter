@@ -101,11 +101,24 @@ BEGIN
     v_step := 'LOAD_NEWPAY_STG_DETAIL';
     CALL SP_CPM_LOAD_CPM_NEWPAY_STG_DETAIL_TBL(:P_PP_END_YEAR, :P_PP_NUM);
 
+    -- FDR Type 3: FAIL_PARENT_IF_INSTANCE_FAILS=NO in PowerCenter workflow,
+    -- so wrap in its own exception block to allow pipeline to continue.
+    -- Downstream steps (TYPE_3, FDR_TO_NEWPAY) are skipped when FDR fails.
+    LET v_fdr_ok BOOLEAN := TRUE;
     v_step := 'LOAD_NEWPAY_STG_TYPE_3_FDR';
-    CALL SP_CPM_LOAD_CPM_NEWPAY_STG_TYPE_3_FDR_TBL(:P_PP_END_YEAR, :P_PP_NUM);
+    BEGIN
+        CALL SP_CPM_LOAD_CPM_NEWPAY_STG_TYPE_3_FDR_TBL(:P_PP_END_YEAR, :P_PP_NUM);
+    EXCEPTION
+        WHEN OTHER THEN
+            v_fdr_ok := FALSE;
+            INSERT INTO ERROR_TBL (PROCESS_NAME, ERROR_MESSAGE, ERROR_DATE)
+                VALUES ('SP_CPM_ETL_ORCHESTRATOR', LEFT('Non-fatal: FDR Type 3 failed: ' || SQLERRM, 200), CURRENT_TIMESTAMP());
+    END;
 
-    v_step := 'LOAD_NEWPAY_STG_TYPE_3';
-    CALL SP_CPM_LOAD_CPM_NEWPAY_STG_TYPE_3_TBL(:P_PP_END_YEAR, :P_PP_NUM);
+    IF (v_fdr_ok) THEN
+        v_step := 'LOAD_NEWPAY_STG_TYPE_3';
+        CALL SP_CPM_LOAD_CPM_NEWPAY_STG_TYPE_3_TBL(:P_PP_END_YEAR, :P_PP_NUM);
+    END IF;
 
     -- ========================================
     -- Phase 9: Promote staging to CPM_NEWPAY_TBL
@@ -113,8 +126,10 @@ BEGIN
     v_step := 'LOAD_PMR_TO_NEWPAY';
     CALL SP_CPM_LOAD_PMR_TO_CPM_NEWPAY_TBL(:P_PP_END_YEAR, :P_PP_NUM);
 
-    v_step := 'LOAD_FDR_TO_NEWPAY';
-    CALL SP_CPM_LOAD_FDR_CPM_NEWPAY_TBL(:P_PP_END_YEAR, :P_PP_NUM);
+    IF (v_fdr_ok) THEN
+        v_step := 'LOAD_FDR_TO_NEWPAY';
+        CALL SP_CPM_LOAD_FDR_CPM_NEWPAY_TBL(:P_PP_END_YEAR, :P_PP_NUM);
+    END IF;
 
     -- ========================================
     -- Phase 10: Build message counters
