@@ -6,11 +6,11 @@
 -- Execution order mirrors the original Informatica workflow:
 --   1. Pre-load (truncate staging)
 --   2. Load flat files into staging via Snowflake stages
---   3. Load PMR (Paymaster) staging tables
---   4. Load YTD staging tables
---   5. Load MER staging tables
---   6. Load PAD staging tables
---   7. Determine current pay period
+--   3. Determine current pay period
+--   4. Load PMR (Paymaster) staging tables
+--   5. Load YTD staging tables
+--   6. Load MER staging tables
+--   7. Load PAD staging tables
 --   8. Build NEWPAY staging (Type 1/2, Type 3, ALT, YTD State, Detail)
 --   9. Promote to CPM_NEWPAY_TBL
 --  10. Build message counters
@@ -46,11 +46,11 @@ BEGIN
     -- ========================================
     v_step := 'STAGE_FLAT_FILES';
 
-    COPY INTO YTD_FILE_RAW FROM @STG_YTD_FILE FORCE = TRUE ON_ERROR = CONTINUE;
-    COPY INTO MER_FILE_RAW FROM @STG_MER_FILE FORCE = TRUE ON_ERROR = CONTINUE;
-    COPY INTO PAYMASTER_THREE_RAW FROM @STG_PAYMASTER_THREE FORCE = TRUE ON_ERROR = CONTINUE;
-    COPY INTO PAYMASTER_FILE_RAW FROM @STG_PAYMASTER_FILE FORCE = TRUE ON_ERROR = CONTINUE;
-    COPY INTO PAD_FILE_RAW FROM @STG_PAD_FILE FORCE = TRUE ON_ERROR = CONTINUE;
+    COPY INTO YTD_FILE_RAW FROM @STG_YTD_FILE PATTERN = '.*PC_DOEYTD_RDF[.]TXT.*' FORCE = TRUE ON_ERROR = CONTINUE;
+    COPY INTO MER_FILE_RAW FROM @STG_MER_FILE PATTERN = '.*PC_DOEMER_RDF[.]TXT.*' FORCE = TRUE ON_ERROR = CONTINUE;
+    COPY INTO PAYMASTER_THREE_RAW FROM @STG_PAYMASTER_THREE PATTERN = '.*PC_DOE_EXP_PMR3[.]TXT.*' FORCE = TRUE ON_ERROR = CONTINUE;
+    COPY INTO PAYMASTER_FILE_RAW FROM @STG_PAYMASTER_FILE PATTERN = '.*PC_DOE_EXP_PMR_RDF[.]TXT.*' FORCE = TRUE ON_ERROR = CONTINUE;
+    COPY INTO PAD_FILE_RAW FROM @STG_PAD_FILE PATTERN = '.*PC_DOEPAD_RDF[.]TXT.*' FORCE = TRUE ON_ERROR = CONTINUE;
 
     -- ========================================
     -- Phase 3: Determine Current Pay Period
