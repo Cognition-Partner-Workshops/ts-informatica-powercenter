@@ -123,14 +123,14 @@ BEGIN
     -- ========================================
     -- Phase 9: Promote staging to CPM_NEWPAY_TBL
     -- ========================================
-    v_step := 'LOAD_PMR_TO_NEWPAY';
-    IF (v_fdr_ok) THEN
-        CALL SP_CPM_LOAD_PMR_TO_CPM_NEWPAY_TBL(:P_PP_END_YEAR, :P_PP_NUM);
-    END IF;
-
     IF (v_fdr_ok) THEN
         v_step := 'LOAD_FDR_TO_NEWPAY';
         CALL SP_CPM_LOAD_FDR_CPM_NEWPAY_TBL(:P_PP_END_YEAR, :P_PP_NUM);
+    END IF;
+
+    v_step := 'LOAD_PMR_TO_NEWPAY';
+    IF (v_fdr_ok) THEN
+        CALL SP_CPM_LOAD_PMR_TO_CPM_NEWPAY_TBL(:P_PP_END_YEAR, :P_PP_NUM);
     END IF;
 
     -- ========================================
