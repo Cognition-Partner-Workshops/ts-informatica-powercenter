@@ -8,10 +8,10 @@ This document validates the Snowflake stored procedures against the original Inf
 |--------|-------|
 | **Total Mappings Reviewed** | 15 (CPM folder) + 21 (CDC/NIH/OIG/AFPS) |
 | **Stored Procedures Validated** | 18 |
-| **Assessment: Correct** | 8 |
-| **Assessment: Needs Review** | 8 |
-| **Assessment: Gap** | 2 |
-| **Overall Risk** | **Medium** — Core ETL pipeline structure is sound; column-level expression completeness and flat-file parsing need verification |
+| **Assessment: Correct** | 6 |
+| **Assessment: Needs Review** | 4 |
+| **Assessment: Gap** | 5 |
+| **Overall Risk** | **Medium-High** — Core ETL pipeline structure is sound; unresolved Informatica port references (`in_HEADER_DATE`), missing pivot logic, and source/target column confusion need remediation before runtime |
 
 ---
 
@@ -41,7 +41,7 @@ This document validates the Snowflake stored procedures against the original Inf
 | — PAYMASTER_TYPE_1 | `RECORD_TYPE_FLAG = '1'` | `PYF_REC_NO_BLANK = '1'` | ✅ Match |
 | — PAYMASTER_TYPE_2 | `RECORD_TYPE_FLAG = '2'` | `PYF_REC_NO_BLANK = '2'` | ✅ Match |
 | — PAYMASTER_TYPE_3 | `RECORD_TYPE_FLAG = '3'` | `PYF_REC_NO_BLANK = '3'` (in CPM_PM3_STG_TBL load) | ✅ Match |
-| **Lookup: lkp_Pay_Period_Record_Date** | `PP_START_DTE <= in_HEADER_DATE AND PP_END_DTE >= in_HEADER_DATE` | `LEFT JOIN PAY_PERIOD ON PP_START_DTE <= in_HEADER_DATE AND PP_END_DTE >= in_HEADER_DATE` | ✅ Match |
+| **Lookup: lkp_Pay_Period_Record_Date** | `PP_START_DTE <= in_HEADER_DATE AND PP_END_DTE >= in_HEADER_DATE` | `LEFT JOIN PAY_PERIOD ON PP_START_DTE <= in_HEADER_DATE AND PP_END_DTE >= in_HEADER_DATE` | ❌ Gap — `in_HEADER_DATE` is an unresolved Informatica port name (see Note 2) |
 | **Lookup: lkp_Current_Pay_Period** | `CURR_PP_FLAG = in_CURR_PP_FLAG` | Indirectly handled via date-based lookup join | ⚠️ Needs Review |
 | **Expression: exp_Determine_Record_Type** | Complex DECODE with date validation and PYF_REC_NO_BLANK checks | Inlined as WHERE clause conditions per target | ✅ Match |
 | **Expression: exp_Initial** | Date parsing: `SUBSTR(PYF_REC_PPE_DATE,5,2)\|\|'/'\|\|SUBSTR(PYF_REC_PPE_DATE,7,2)\|\|'/'\|\|SUBSTR(PYF_REC_PPE_DATE,1,4)` | `SUBSTR(PYF_REC_PPE_DATE,5,2)\|\|'/'\|\|SUBSTR(PYF_REC_PPE_DATE,7,2)\|\|'/'\|\|SUBSTR(PYF_REC_PPE_DATE,1,4)` via TRY_TO_DATE | ✅ Match |
@@ -50,7 +50,9 @@ This document validates the Snowflake stored procedures against the original Inf
 
 > **Note 1**: The Normalizer transformation (Norm_PAYMASTER_FILE) that parses the fixed-width VSAM flat file into individual fields is not implemented as a standalone step. The Snowflake approach assumes the RAW_LINE has been pre-parsed into a structured `PAYMASTER_FILE` view/table with named columns. This parsing step needs to be verified separately.
 
-**Assessment: ⚠️ Needs Review** — Router logic is correct, but flat-file Normalizer parsing is not shown.
+> **Note 2**: The `in_HEADER_DATE` identifier used in the LEFT JOIN ON clause is an Informatica expression port name from `exp_Initial`, not a valid Snowflake column. In PowerCenter, `exp_Initial` computed this date from raw record substrings (e.g., `SUBSTR(PYF_REC_PPE_DATE,5,2)||'/'||SUBSTR(PYF_REC_PPE_DATE,7,2)||'/'||SUBSTR(PYF_REC_PPE_DATE,1,4)`). This must be replaced with a `TRY_TO_DATE(SUBSTR(...))` expression or a pre-computed column. **This same issue affects all 4 staging procedures**: PMR (11 occurrences), YTD, MER, and PAD.
+
+**Assessment: ❌ Gap** — Router logic is correct, but `in_HEADER_DATE` is an unresolved port reference and flat-file Normalizer parsing is not shown.
 
 ---
 
@@ -63,7 +65,7 @@ This document validates the Snowflake stored procedures against the original Inf
 | — YTD_HEADER | `DFAS_YTD_RECORD_TYPE1 = '0'` | `WHERE DFAS_YTD_RECORD_TYPE1 = '0'` | ✅ Match |
 | — YTD_DETAIL | `DFAS_YTD_RECORD_TYPE1 = '1'` | `WHERE DFAS_YTD_RECORD_TYPE1 = '1'` | ✅ Match |
 | — YTD_STATE | `DFAS_YTD_RECORD_TYPE1 = '2'` | `WHERE DFAS_YTD_RECORD_TYPE1 = '2'` | ✅ Match |
-| **Lookup: lkp_Pay_Period_Record_Date** | `PP_START_DTE <= in_HEADER_DATE AND PP_END_DTE >= in_HEADER_DATE` | `LEFT JOIN PAY_PERIOD ON PP_START_DTE <= in_HEADER_DATE AND PP_END_DTE >= in_HEADER_DATE` | ✅ Match |
+| **Lookup: lkp_Pay_Period_Record_Date** | `PP_START_DTE <= in_HEADER_DATE AND PP_END_DTE >= in_HEADER_DATE` | `LEFT JOIN PAY_PERIOD ON PP_START_DTE <= in_HEADER_DATE AND PP_END_DTE >= in_HEADER_DATE` | ❌ Gap — same unresolved `in_HEADER_DATE` port (see PMR Note 2) |
 | **Expression: exp_Convert** | Date parsing with SUBSTR, IS_DATE checks | Not explicitly shown (relies on pre-parsed data) | ⚠️ Needs Review |
 | **Expression: exp_Verify_Header_Date** | ABORT on invalid date, validates current pay period | Not implemented — no ABORT equivalent | ⚠️ Gap |
 | **Expression: exp_Final_YTD_State** | Sequence ID generation: `IIF(ISNULL(v_SEQ_ID) OR v_SEQ_ID = 0, 1, v_SEQ_ID + 1)` | `ROW_NUMBER() OVER (ORDER BY DYD_SSN_2, DYD_STATE_TAX_CODE)` | ✅ Equivalent |
@@ -80,7 +82,7 @@ This document validates the Snowflake stored procedures against the original Inf
 | **Router: rtr_MER_Records** | | | |
 | — MER_HEADER | `MER_RECTYP1 = '1'` | `WHERE MER_RECTYP1 = '1'` | ✅ Match |
 | — MER_DETAIL | `MER_RECTYP1 = '3'` | `WHERE MER_RECTYP1 = '3'` | ✅ Match |
-| **Lookup: lkp_Pay_Period_Record_Date** | `PP_START_DTE <= in_HEADER_DATE AND PP_END_DTE >= in_HEADER_DATE` | `LEFT JOIN PAY_PERIOD ON ...` same condition | ✅ Match |
+| **Lookup: lkp_Pay_Period_Record_Date** | `PP_START_DTE <= in_HEADER_DATE AND PP_END_DTE >= in_HEADER_DATE` | `LEFT JOIN PAY_PERIOD ON ...` same condition | ❌ Gap — same unresolved `in_HEADER_DATE` port (see PMR Note 2) |
 | **Targets** | CPM_MER_DETAIL_STG_TBL (95 cols), CPM_MER_HEADER_STG_TBL (7 cols) | Both present with correct structure | ✅ Match |
 | **Column list completeness** | 95 detail columns | Shows 15 cols + `... and 80 more expressions` | ⚠️ Needs verification |
 
@@ -95,7 +97,7 @@ This document validates the Snowflake stored procedures against the original Inf
 | **Router: rtr_PAD_Records** | | | |
 | — PAD_HEADER | `RECORD_TYPE = 'H'` | `WHERE RECORD_TYPE = 'H'` | ✅ Match |
 | — PAD_DETAIL | `RECORD_TYPE = 'D'` | `WHERE RECORD_TYPE = 'D'` | ✅ Match |
-| **Lookup** | Same lkp_Pay_Period_Record_Date pattern | Same LEFT JOIN pattern | ✅ Match |
+| **Lookup** | Same lkp_Pay_Period_Record_Date pattern | Same LEFT JOIN pattern | ❌ Gap — same unresolved `in_HEADER_DATE` port (see PMR Note 2) |
 | **Targets** | CPM_PAD_DETAIL_STG_TBL (150 cols), CPM_PAD_HEADER_STG_TBL (8 cols) | Both present | ✅ Match |
 
 **Assessment: ⚠️ Needs Review** — Same pattern as MER; column completeness needs verification for 150-column detail table.
@@ -160,9 +162,10 @@ This document validates the Snowflake stored procedures against the original Inf
 |---------|----------------------|-------------------------------------------------------|--------|
 | **Source** | CPM_PM3_STG_TBL (custom SQL with ORDER BY) | `FROM CPM_PM3_STG_TBL` | ⚠️ Missing parameter filter |
 | **Aggregator: agg_PYF_EYE_ID_PP_NUM** | Group by PYF_EYE_ID_PDT3, PP_END_YEAR, PP_NUM | Not shown in procedure | ⚠️ Needs Review |
-| **Target** | CPM_NEWPAY_STG_DETAIL_TBL (22 cols) | Shows 15 + 7 = 22 columns | ✅ Match |
+| **Column references** | Source uses `PYF_EYE_ID_PDT3` as SSN | SELECT uses `DFAS_PSEUDO_SSN` (target column name, not source) | ❌ Gap — should be `PYF_EYE_ID_PDT3 AS DFAS_PSEUDO_SSN` |
+| **Target** | CPM_NEWPAY_STG_DETAIL_TBL (22 cols) | Shows 15 + 7 = 22 columns | ✅ Match (count) |
 
-**Assessment: ⚠️ Needs Review** — Aggregator group-by logic not explicitly visible.
+**Assessment: ❌ Gap** — SELECT references target column names instead of source columns; aggregator group-by not visible.
 
 ---
 
@@ -317,11 +320,13 @@ The branch includes only the CPM core stored procedures. The following agency-sp
 
 | Risk Area | Severity | Affected Procedures | Description |
 |-----------|----------|---------------------|-------------|
+| **Unresolved Informatica port `in_HEADER_DATE`** | 🔴 High | PMR, YTD, MER, PAD staging (11 occurrences) | The LEFT JOIN ON clause references `in_HEADER_DATE`, an Informatica expression port name from `exp_Initial`, not a valid Snowflake column/variable. Will cause runtime SQL errors. Must be replaced with `TRY_TO_DATE(SUBSTR(...))` or a pre-computed column. |
 | **Flat-file Normalizer not implemented** | 🔴 High | PMR, YTD, MER, PAD staging | VSAM fixed-width parsing from RAW_LINE to structured columns is not shown. The procedures assume a pre-parsed table exists but no VIEW or parsing logic bridges RAW → structured. |
 | **Stateful pivot logic missing** | 🔴 High | SP_CPM_LOAD_CPM_NEWPAY_STG_YTD_STATE_TBL, SP_CPM_LOAD_CPM_NEWPAY_STG_ALT_TBL | PowerCenter uses row-by-row stateful expressions to pivot multiple rows into wide columns (4 state tax records, 7 allotments). Snowflake procedures do a direct pass-through without PIVOT/conditional aggregation. |
 | **Date validation / ABORT guards missing** | 🟡 Medium | YTD, PMR staging | PowerCenter `exp_Verify_Header_Date` calls `ABORT()` on invalid dates. Snowflake procedures don't enforce this guard. Data quality could silently degrade. |
 | **Parameter filters not applied** | 🟡 Medium | YTD State, Type 3, Detail | Some Source Qualifier SQL in PowerCenter filters by `$$MAP_PP_END_YEAR / $$MAP_PP_NUM`. The Snowflake procedures sometimes omit this filter, potentially processing all periods instead of the target period. |
 | **Lookup JOINs incomplete** | 🟡 Medium | Type 3 FDR, Type 3, Detail | Several lookups referenced in transformation chains (lkp_CPM_NEWPAY_STG_TYPE_1_2_TBL, lkp_CPM_NEWPAY_STG_ALT_TBL) are not implemented as JOINs in the Snowflake SQL. |
+| **Source/target column name confusion** | 🟡 Medium | Detail, ALT, Type 3 FDR | Some SELECTs reference target column names (e.g., `DFAS_PSEUDO_SSN`) instead of actual source column names (e.g., `PYF_EYE_ID_PDT3`). Will cause runtime SQL errors. |
 | **Column-level expression verification** | 🟡 Medium | All staging loads | Stored procedures show truncated column lists ("... and N more expressions"). Full column-by-column formula verification requires expanding these. |
 | **Agency reports not migrated** | 🟠 Low | CDC, NIH, OIG, AFPS | 33 report-generation mappings not yet migrated. These are downstream consumers, not core ETL. |
 | **Aggregator ORDER BY semantics** | 🟠 Low | Detail, ALT, Type 3 FDR | PowerCenter aggregators have deterministic input ordering. Snowflake SQL without ORDER BY in aggregations may produce different results for FIRST/LAST value selections. |
@@ -332,9 +337,13 @@ The branch includes only the CPM core stored procedures. The following agency-sp
 
 ### Immediate Actions (Pre-UAT)
 
-1. **Implement flat-file parsing layer**: Create Snowflake VIEWs or a preprocessing procedure that uses `SUBSTR()` on `RAW_LINE` columns to extract fixed-width fields. The field offsets are defined in the PowerCenter SOURCEFIELD elements (PHYSICALOFFSET + PHYSICALLENGTH).
+1. **Replace unresolved `in_HEADER_DATE` port references**: In all 4 staging procedures (PMR, YTD, MER, PAD — 11 occurrences), replace `in_HEADER_DATE` with the actual date derivation logic. For example, in the PMR procedure: `TRY_TO_DATE(SUBSTR(PYF_REC_PPE_DATE,5,2)||'/'||SUBSTR(PYF_REC_PPE_DATE,7,2)||'/'||SUBSTR(PYF_REC_PPE_DATE,1,4), 'MM/DD/YYYY')`. Or define a pre-computed column in the parsed source table.
 
-2. **Implement YTD State pivot logic**: Replace the direct INSERT in `SP_CPM_LOAD_CPM_NEWPAY_STG_YTD_STATE_TBL` with a conditional aggregation pattern:
+2. **Fix source/target column name confusion**: In Detail, ALT, and Type 3 FDR procedures, replace target column names in SELECT statements with actual source column names (e.g., `PYF_EYE_ID_PDT3 AS DFAS_PSEUDO_SSN` instead of `DFAS_PSEUDO_SSN`).
+
+3. **Implement flat-file parsing layer**: Create Snowflake VIEWs or a preprocessing procedure that uses `SUBSTR()` on `RAW_LINE` columns to extract fixed-width fields. The field offsets are defined in the PowerCenter SOURCEFIELD elements (PHYSICALOFFSET + PHYSICALLENGTH).
+
+4. **Implement YTD State pivot logic**: Replace the direct INSERT in `SP_CPM_LOAD_CPM_NEWPAY_STG_YTD_STATE_TBL` with a conditional aggregation pattern:
    ```sql
    SELECT PP_END_YEAR, PP_NUM, DFAS_PSEUDO_SSN,
        MAX(CASE WHEN rn = 1 THEN state_code END) AS YTD_STATE_1,
@@ -345,21 +354,21 @@ The branch includes only the CPM core stored procedures. The following agency-sp
    GROUP BY PP_END_YEAR, PP_NUM, DFAS_PSEUDO_SSN
    ```
 
-3. **Implement Allotment pivot logic**: Similar conditional aggregation for `SP_CPM_LOAD_CPM_NEWPAY_STG_ALT_TBL`, capping at allotment 7 and merging overflow into allotment 4.
+5. **Implement Allotment pivot logic**: Similar conditional aggregation for `SP_CPM_LOAD_CPM_NEWPAY_STG_ALT_TBL`, capping at allotment 7 and merging overflow into allotment 4.
 
-4. **Add parameter filters**: Add `WHERE PP_END_YEAR = v_MAP_PP_END_YEAR AND PP_NUM = v_MAP_PP_NUM` to procedures that are missing it.
+6. **Add parameter filters**: Add `WHERE PP_END_YEAR = v_MAP_PP_END_YEAR AND PP_NUM = v_MAP_PP_NUM` to procedures that are missing it.
 
 ### Pre-Production Verification
 
-5. **Add date validation guards**: Implement Snowflake-equivalent validation (e.g., `IF TRY_TO_DATE(...) IS NULL THEN RAISE` or log to ERROR_TBL) to replace PowerCenter ABORT() calls.
+7. **Add date validation guards**: Implement Snowflake-equivalent validation (e.g., `IF TRY_TO_DATE(...) IS NULL THEN RAISE` or log to ERROR_TBL) to replace PowerCenter ABORT() calls.
 
-6. **Verify column completeness**: Expand truncated column lists and validate each expression against the PowerCenter XML port formulas.
+8. **Verify column completeness**: Expand truncated column lists and validate each expression against the PowerCenter XML port formulas.
 
-7. **Add missing lookup JOINs**: Integrate lookups as LEFT JOINs in the Type 3, Type 3 FDR, and Detail procedures.
+9. **Add missing lookup JOINs**: Integrate lookups as LEFT JOINs in the Type 3, Type 3 FDR, and Detail procedures.
 
 ### Future Scope
 
-8. **Migrate agency report mappings**: CDC (6), NIH (6), OIG (4), AFPS (17) report-generation mappings.
+10. **Migrate agency report mappings**: CDC (6), NIH (6), OIG (4), AFPS (17) report-generation mappings.
 
 ---
 
