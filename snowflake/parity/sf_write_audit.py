@@ -1,6 +1,6 @@
 """List every successful DML/CTAS against the SF schema's NWK_/EHRP_ targets on WH_TS_NWK since a UTC time,
 classifying each statement as dbt-issued (dbt query comment) or not."""
-import argparse, json, os
+import argparse, datetime, json, os
 import snowflake.connector
 from cryptography.hazmat.primitives import serialization
 
@@ -20,6 +20,7 @@ def main():
     ap.add_argument("--since-utc", required=True)
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
+    since = datetime.datetime.strptime(args.since_utc, "%Y-%m-%d %H:%M:%S")
     cur = connect().cursor()
     cur.execute(f"""
 select to_char(convert_timezone('UTC', start_time), 'YYYY-MM-DD HH24:MI:SS') as start_utc, query_type, rows_inserted,
@@ -30,14 +31,14 @@ select to_char(convert_timezone('UTC', start_time), 'YYYY-MM-DD HH24:MI:SS') as 
        contains(lower(query_text), '__dbt_tmp') as reads_dbt_tmp
 from table(information_schema.query_history_by_warehouse(
        warehouse_name => 'WH_TS_NWK',
-       end_time_range_start => convert_timezone('UTC', 'America/Los_Angeles', '{args.since_utc}'::timestamp_ntz)::timestamp_ltz,
+       end_time_range_start => to_timestamp_ltz(%(since)s, 'YYYY-MM-DD HH24:MI:SS TZH:TZM'),
        result_limit => 10000))
 where execution_status = 'SUCCESS'
   and query_type in ('INSERT', 'CREATE_TABLE_AS_SELECT', 'MERGE', 'DELETE', 'UPDATE', 'TRUNCATE_TABLE', 'COPY')
   and contains(upper(query_text), '{SF}.')
   and (contains(query_text, 'NWK_ACTION_PRIMARY_TBL') or contains(query_text, 'NWK_ACTION_SECONDARY_TBL')
        or contains(query_text, 'EHRP_RECS_TRACKING_TBL'))
-order by start_time""")
+order by start_time""", {"since": since.strftime("%Y-%m-%d %H:%M:%S +00:00")})
     cols = [d[0].lower() for d in cur.description]
     rows = [dict(zip(cols, r)) for r in cur.fetchall()]
     with open(args.out, "w") as f:
