@@ -49,3 +49,10 @@ Recompute parity (canonical form, checksums, keyed + EXCEPT diff) into `snowflak
 ```
 
 The PowerCenter wrappers `actstage_load` and `ehrp2biis_preload` call SQL*Plus scripts `action_stage_load` and `step01`, which are not in this repository; they were not reconstructed.
+
+Rerun-idempotency evidence: after each full dual run, capture per-table counts and audit SF writes (same env binding):
+
+```sh
+~/sfenv/bin/python snowflake/parity/rerun_counts.py --label run1 --out snowflake/parity/rerun/counts_run1.json
+~/sfenv/bin/python snowflake/parity/sf_write_audit.py --since-utc "<UTC start of the reruns>" --out snowflake/parity/rerun/after_sf_write_audit.json
+```
