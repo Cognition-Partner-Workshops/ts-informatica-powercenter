@@ -1,0 +1,5 @@
+| output | rows in | legacy rows | new rows | mismatches | legacy checksum | new checksum |
+|---|---|---|---|---|---|---|
+| NWK_ACTION_PRIMARY_TBL | 27263 | 2574 | 2574 | 0 | 3652837735094350658 | 3652837735094350658 |
+| NWK_ACTION_SECONDARY_TBL | 27263 | 2574 | 2574 | 0 | 3707054462389897087 | 3707054462389897087 |
+| EHRP_RECS_TRACKING_TBL | 27263 | 2574 | 2574 | 0 | 591706083303637605 | 591706083303637605 |

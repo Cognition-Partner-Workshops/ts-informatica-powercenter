@@ -10,7 +10,7 @@ From the repository root, regenerate and execute the local reference:
 ~/sfenv/bin/python snowflake/legacy/pc_executor.py
 ```
 
-For every Snowflake command below, bind the SPEC secrets in that `exec` call's environment without printing them:
+For every Snowflake command below, bind the `SFNFR_*` org secrets in that `exec` call's environment without printing them:
 
 ```json
 {
@@ -39,4 +39,12 @@ DBT_PROFILES_DIR=snowflake/dbt/ehrp2biis_stage_load \
 
 The loader replaces only tables in `TS_NWK_SRC_SFNFR_20261104` and `TS_NWK_LEGACY_SFNFR_20261104`. dbt models write only to `TS_NWK_SF_SFNFR_20261104`; all use warehouse `WH_TS_NWK`. The mapping semantics are reimplemented locally and in SQL; no PowerCenter session is run.
 
-The profile uses `snowflake_jwt` as required by the SPEC. If the Snowflake adapter rejects that authenticator setting, remove only the `authenticator` line from `profiles.yml` and rerun.
+The profile uses `snowflake_jwt` (key-pair JWT). If the Snowflake adapter rejects that authenticator setting, remove only the `authenticator` line from `profiles.yml` and rerun.
+
+Recompute parity (canonical form, checksums, keyed + EXCEPT diff) into `snowflake/parity/`:
+
+```sh
+~/sfenv/bin/python snowflake/parity/parity.py
+```
+
+The PowerCenter wrappers `actstage_load` and `ehrp2biis_preload` call SQL*Plus scripts `action_stage_load` and `step01`, which are not in this repository; they were not reconstructed.
