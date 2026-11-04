@@ -26,6 +26,7 @@ Explained mismatches: none.
 
 ## Declared semantics (both sides)
 - The three marts use incremental append semantics; dual-run comparisons use `dbt build --full-refresh` so the SF targets start empty, matching the LEGACY loader's replace behavior.
+- A rerun of an already-loaded batch appends nothing; new rows (for example, rows generated with a new `run_date`) append.
 - SQ: inner join PS_GVT_JOB x NWK_NEW_EHRP_ACTIONS_TBL on EMPLID, EMPL_RCD, EFFDT, EFFSEQ; 3,090 joined rows
   (150 job keys and 60 NWK keys drop out; 40 duplicated NWK keys multiply rows).
 - The SQ orders only by EFFDT; ties are undefined in Oracle, so both sides break ties by EMPLID, EMPL_RCD, EFFSEQ.

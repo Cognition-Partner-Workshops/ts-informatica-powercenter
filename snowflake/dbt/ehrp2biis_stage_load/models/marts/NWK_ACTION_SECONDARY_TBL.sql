@@ -1,3 +1,4 @@
+SELECT * FROM (
 SELECT
     CAST(O_EVENT_ID AS NUMBER(10,0)) AS EVENT_ID,
     NULLIF(LEFT(CAST(NULL AS VARCHAR), 1), '') AS ADTNL_OPT_LIFE_INS_CD,
@@ -210,3 +211,8 @@ SELECT
     NULLIF(LEFT(CAST(PAYGROUP AS VARCHAR), 3), '') AS PAYGROUP
 FROM {{ ref('int_ehrp2biis__exp_main2biis') }}
 WHERE EVENT_ID IS NOT NULL
+) AS batch
+{% if is_incremental() %}
+MINUS
+SELECT * FROM {{ this }}
+{% endif %}

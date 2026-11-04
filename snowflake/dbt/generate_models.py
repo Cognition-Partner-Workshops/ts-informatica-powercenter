@@ -434,10 +434,19 @@ def _mart_sql(
         "EHRP_RECS_TRACKING_TBL": ["BIIS_EVENT_ID"],
     }[table]
     filters = " AND ".join(f"{field} IS NOT NULL" for field in required)
-    return (
+    select = (
         "SELECT\n" + ",\n".join(projections) + "\n"
         "FROM {{ ref('int_ehrp2biis__exp_main2biis') }}\n"
         f"WHERE {filters}\n"
+    )
+    return (
+        "SELECT * FROM (\n"
+        + select
+        + ") AS batch\n"
+        + "{% if is_incremental() %}\n"
+        + "MINUS\n"
+        + "SELECT * FROM {{ this }}\n"
+        + "{% endif %}\n"
     )
 
 
