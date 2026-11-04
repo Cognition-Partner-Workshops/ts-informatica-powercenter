@@ -1,0 +1,14 @@
+snowflake_sfnfr:
+  target: sfnfr
+  outputs:
+    sfnfr:
+      type: snowflake
+      account: "{{ env_var('SFNFR_ACCOUNT') }}"
+      user: "{{ env_var('SFNFR_USER') }}"
+      role: "{{ env_var('SFNFR_ROLE') }}"
+      warehouse: WH_TS_NWK
+      database: SFNFR_20261104
+      schema: TS_NWK_SF_SFNFR_20261104
+      authenticator: snowflake_jwt
+      private_key: "{{ env_var('SFNFR_PRIVATE_KEY') }}"
+      threads: 4

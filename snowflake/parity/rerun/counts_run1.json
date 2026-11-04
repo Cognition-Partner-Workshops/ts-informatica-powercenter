@@ -1,0 +1,108 @@
+{
+ "label": "run1",
+ "captured_utc": "2026-11-04 21:37:27",
+ "tables": [
+  {
+   "role": "SRC",
+   "fqn": "SFNFR_20261104.TS_NWK_SRC_SFNFR_20261104.NWK_NEW_EHRP_ACTIONS_TBL",
+   "table": "NWK_NEW_EHRP_ACTIONS_TBL",
+   "rows": 3150
+  },
+  {
+   "role": "SRC",
+   "fqn": "SFNFR_20261104.TS_NWK_SRC_SFNFR_20261104.PS_GVT_AWD_DATA",
+   "table": "PS_GVT_AWD_DATA",
+   "rows": 2613
+  },
+  {
+   "role": "SRC",
+   "fqn": "SFNFR_20261104.TS_NWK_SRC_SFNFR_20261104.PS_GVT_CITIZENSHIP",
+   "table": "PS_GVT_CITIZENSHIP",
+   "rows": 2613
+  },
+  {
+   "role": "SRC",
+   "fqn": "SFNFR_20261104.TS_NWK_SRC_SFNFR_20261104.PS_GVT_EE_DATA_TRK",
+   "table": "PS_GVT_EE_DATA_TRK",
+   "rows": 2614
+  },
+  {
+   "role": "SRC",
+   "fqn": "SFNFR_20261104.TS_NWK_SRC_SFNFR_20261104.PS_GVT_EMPLOYMENT",
+   "table": "PS_GVT_EMPLOYMENT",
+   "rows": 2613
+  },
+  {
+   "role": "SRC",
+   "fqn": "SFNFR_20261104.TS_NWK_SRC_SFNFR_20261104.PS_GVT_JOB",
+   "table": "PS_GVT_JOB",
+   "rows": 3200
+  },
+  {
+   "role": "SRC",
+   "fqn": "SFNFR_20261104.TS_NWK_SRC_SFNFR_20261104.PS_GVT_PERS_DATA",
+   "table": "PS_GVT_PERS_DATA",
+   "rows": 2613
+  },
+  {
+   "role": "SRC",
+   "fqn": "SFNFR_20261104.TS_NWK_SRC_SFNFR_20261104.PS_GVT_PERS_NID",
+   "table": "PS_GVT_PERS_NID",
+   "rows": 2613
+  },
+  {
+   "role": "SRC",
+   "fqn": "SFNFR_20261104.TS_NWK_SRC_SFNFR_20261104.PS_HE_FILL_POS",
+   "table": "PS_HE_FILL_POS",
+   "rows": 2613
+  },
+  {
+   "role": "SRC",
+   "fqn": "SFNFR_20261104.TS_NWK_SRC_SFNFR_20261104.PS_JPM_JP_ITEMS",
+   "table": "PS_JPM_JP_ITEMS",
+   "rows": 2615
+  },
+  {
+   "role": "SRC",
+   "fqn": "SFNFR_20261104.TS_NWK_SRC_SFNFR_20261104.SEQUENCE_NUM_TBL",
+   "table": "SEQUENCE_NUM_TBL",
+   "rows": 6
+  },
+  {
+   "role": "LEGACY",
+   "fqn": "SFNFR_20261104.TS_NWK_LEGACY_SFNFR_20261104.EHRP_RECS_TRACKING_TBL",
+   "table": "EHRP_RECS_TRACKING_TBL",
+   "rows": 2574
+  },
+  {
+   "role": "LEGACY",
+   "fqn": "SFNFR_20261104.TS_NWK_LEGACY_SFNFR_20261104.NWK_ACTION_PRIMARY_TBL",
+   "table": "NWK_ACTION_PRIMARY_TBL",
+   "rows": 2574
+  },
+  {
+   "role": "LEGACY",
+   "fqn": "SFNFR_20261104.TS_NWK_LEGACY_SFNFR_20261104.NWK_ACTION_SECONDARY_TBL",
+   "table": "NWK_ACTION_SECONDARY_TBL",
+   "rows": 2574
+  },
+  {
+   "role": "SF",
+   "fqn": "SFNFR_20261104.TS_NWK_SF_SFNFR_20261104.EHRP_RECS_TRACKING_TBL",
+   "table": "EHRP_RECS_TRACKING_TBL",
+   "rows": 2574
+  },
+  {
+   "role": "SF",
+   "fqn": "SFNFR_20261104.TS_NWK_SF_SFNFR_20261104.NWK_ACTION_PRIMARY_TBL",
+   "table": "NWK_ACTION_PRIMARY_TBL",
+   "rows": 2574
+  },
+  {
+   "role": "SF",
+   "fqn": "SFNFR_20261104.TS_NWK_SF_SFNFR_20261104.NWK_ACTION_SECONDARY_TBL",
+   "table": "NWK_ACTION_SECONDARY_TBL",
+   "rows": 2574
+  }
+ ]
+}

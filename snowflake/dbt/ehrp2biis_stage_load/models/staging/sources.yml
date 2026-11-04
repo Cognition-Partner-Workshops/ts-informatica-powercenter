@@ -1,0 +1,28 @@
+version: 2
+sources:
+  - name: src_tables
+    database: SFNFR_20261104
+    schema: TS_NWK_SRC_SFNFR_20261104
+    tables:
+      - name: NWK_NEW_EHRP_ACTIONS_TBL
+        identifier: NWK_NEW_EHRP_ACTIONS_TBL
+      - name: PS_GVT_JOB
+        identifier: PS_GVT_JOB
+      - name: SEQUENCE_NUM_TBL
+        identifier: SEQUENCE_NUM_TBL
+      - name: PS_GVT_EMPLOYMENT
+        identifier: PS_GVT_EMPLOYMENT
+      - name: PS_GVT_PERS_NID
+        identifier: PS_GVT_PERS_NID
+      - name: PS_GVT_AWD_DATA
+        identifier: PS_GVT_AWD_DATA
+      - name: PS_GVT_EE_DATA_TRK
+        identifier: PS_GVT_EE_DATA_TRK
+      - name: PS_HE_FILL_POS
+        identifier: PS_HE_FILL_POS
+      - name: PS_GVT_CITIZENSHIP
+        identifier: PS_GVT_CITIZENSHIP
+      - name: PS_GVT_PERS_DATA
+        identifier: PS_GVT_PERS_DATA
+      - name: PS_JPM_JP_ITEMS
+        identifier: PS_JPM_JP_ITEMS

@@ -1,0 +1,8 @@
+version: 2
+models:
+  - name: EHRP_RECS_TRACKING_TBL
+    columns:
+      - name: BIIS_EVENT_ID
+        data_tests:
+          - not_null:
+              arguments: {}
