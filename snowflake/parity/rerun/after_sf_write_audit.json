@@ -1,0 +1,53 @@
+{
+ "since_utc": "2026-11-04 21:31:33",
+ "statements": [
+  {
+   "start_utc": "2026-11-04 21:36:47",
+   "query_type": "CREATE_TABLE_AS_SELECT",
+   "rows_inserted": 2574,
+   "target": "NWK_ACTION_PRIMARY_TBL",
+   "dbt_issued": true,
+   "reads_dbt_tmp": false
+  },
+  {
+   "start_utc": "2026-11-04 21:36:47",
+   "query_type": "CREATE_TABLE_AS_SELECT",
+   "rows_inserted": 2574,
+   "target": "NWK_ACTION_SECONDARY_TBL",
+   "dbt_issued": true,
+   "reads_dbt_tmp": false
+  },
+  {
+   "start_utc": "2026-11-04 21:36:47",
+   "query_type": "CREATE_TABLE_AS_SELECT",
+   "rows_inserted": 2574,
+   "target": "EHRP_RECS_TRACKING_TBL",
+   "dbt_issued": true,
+   "reads_dbt_tmp": false
+  },
+  {
+   "start_utc": "2026-11-04 21:41:26",
+   "query_type": "CREATE_TABLE_AS_SELECT",
+   "rows_inserted": 2574,
+   "target": "NWK_ACTION_PRIMARY_TBL",
+   "dbt_issued": true,
+   "reads_dbt_tmp": false
+  },
+  {
+   "start_utc": "2026-11-04 21:41:26",
+   "query_type": "CREATE_TABLE_AS_SELECT",
+   "rows_inserted": 2574,
+   "target": "NWK_ACTION_SECONDARY_TBL",
+   "dbt_issued": true,
+   "reads_dbt_tmp": false
+  },
+  {
+   "start_utc": "2026-11-04 21:41:26",
+   "query_type": "CREATE_TABLE_AS_SELECT",
+   "rows_inserted": 2574,
+   "target": "EHRP_RECS_TRACKING_TBL",
+   "dbt_issued": true,
+   "reads_dbt_tmp": false
+  }
+ ]
+}

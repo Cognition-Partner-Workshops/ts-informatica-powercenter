@@ -439,15 +439,7 @@ def _mart_sql(
         "FROM {{ ref('int_ehrp2biis__exp_main2biis') }}\n"
         f"WHERE {filters}\n"
     )
-    return (
-        "SELECT * FROM (\n"
-        + select
-        + ") AS batch\n"
-        + "{% if is_incremental() %}\n"
-        + "MINUS\n"
-        + "SELECT * FROM {{ this }}\n"
-        + "{% endif %}\n"
-    )
+    return select
 
 
 def _unique_test(table: str, columns: list[dict[str, Any]]) -> str:

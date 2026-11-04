@@ -1,4 +1,3 @@
-SELECT * FROM (
 SELECT
     NULLIF(LEFT(CAST(WIRE__SQ_PS_GVT_JOB__EMPLID AS VARCHAR), 8), '') AS EMPLID,
     CAST(WIRE__SQ_PS_GVT_JOB__EMPL_RCD AS NUMBER(2,0)) AS EMPL_RCD,
@@ -12,8 +11,3 @@ SELECT
     CAST(O_LOAD_DATE AS TIMESTAMP_NTZ(0)) AS LOAD_DATE
 FROM {{ ref('int_ehrp2biis__exp_main2biis') }}
 WHERE BIIS_EVENT_ID IS NOT NULL
-) AS batch
-{% if is_incremental() %}
-MINUS
-SELECT * FROM {{ this }}
-{% endif %}
