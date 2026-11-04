@@ -34,10 +34,11 @@ Run the dbt build with the project-local profile:
 DBT_PROFILES_DIR=snowflake/dbt/ehrp2biis_stage_load \
   ~/dbtenv/bin/dbt deps --project-dir snowflake/dbt/ehrp2biis_stage_load &&
 DBT_PROFILES_DIR=snowflake/dbt/ehrp2biis_stage_load \
-  ~/dbtenv/bin/dbt build --project-dir snowflake/dbt/ehrp2biis_stage_load --target sfnfr
+  ~/dbtenv/bin/dbt build --project-dir snowflake/dbt/ehrp2biis_stage_load --target sfnfr --full-refresh
 ```
 
 The loader replaces only tables in `TS_NWK_SRC_SFNFR_20261104` and `TS_NWK_LEGACY_SFNFR_20261104`. dbt models write only to `TS_NWK_SF_SFNFR_20261104`; all use warehouse `WH_TS_NWK`. The mapping semantics are reimplemented locally and in SQL; no PowerCenter session is run.
+The three dbt marts use incremental append semantics, matching the insert-only PowerCenter targets. Use `dbt build --full-refresh` for a dual-run rerun so the SF targets start empty, matching the LEGACY loader's replace behavior; a plain `dbt build` appends another batch.
 
 The profile uses `snowflake_jwt` (key-pair JWT). If the Snowflake adapter rejects that authenticator setting, remove only the `authenticator` line from `profiles.yml` and rerun.
 

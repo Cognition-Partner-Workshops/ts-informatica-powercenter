@@ -23,4 +23,5 @@ models:
     intermediate:
       +materialized: view
     marts:
-      +materialized: table
+      +materialized: incremental
+      +incremental_strategy: append
