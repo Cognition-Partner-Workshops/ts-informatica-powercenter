@@ -17,6 +17,18 @@ sys.modules[spec.name] = run
 spec.loader.exec_module(run)
 
 
+@pytest.mark.parametrize("command", ["freeze", "check-monitor", "create-objects", "load-src", "legacy", "dbt", "compare"])
+def test_non_setup_dry_run_is_usage_error(command, monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["run.py", command, "--dry-run"])
+    with pytest.raises(SystemExit) as exc:
+        run.parse_args()
+    assert exc.value.code == 2
+    error = capsys.readouterr().err
+    assert "usage:" in error
+    assert "--dry-run applies to setup only" in error
+    assert "Traceback" not in error
+
+
 def test_parameters():
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     pem = key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,

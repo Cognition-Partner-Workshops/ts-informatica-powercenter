@@ -344,6 +344,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", type=Path)
     parser.add_argument("--log", type=Path)
     args = parser.parse_args()
+    if args.dry_run and args.command != "setup":
+        parser.error("--dry-run applies to setup only")
     args.run_id = sf.make_run_id("mig_pc", "dev")
     if args.log is None:
         args.log = Path.home() / "work/runs" / f"{args.command}-{args.run_id}.json"
@@ -362,8 +364,6 @@ def main() -> None:
         print("input_digest=" + freeze(directory)["input_digest"])
         return
     if args.dry_run:
-        if args.command != "setup":
-            raise ValueError("--dry-run applies to setup only")
         print(";\n".join(setup_sql()) + ";")
         return
     commit = head_commit()
