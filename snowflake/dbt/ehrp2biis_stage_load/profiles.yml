@@ -1,0 +1,15 @@
+snowflake_sfnfr:
+  target: sfnfr
+  outputs:
+    sfnfr:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_EXT_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_EXT_USER') }}"
+      role: DEVIN_EXT_ROLE
+      warehouse: "{{ env_var('SFEXT_WAREHOUSE') }}"
+      database: "{{ env_var('SFEXT_DATABASE') }}"
+      schema: "{{ env_var('SFEXT_TARGET_SCHEMA', 'EHRP2BIIS_TGT') }}"
+      authenticator: snowflake_jwt
+      private_key: "{{ env_var('DBT_ENV_SECRET_SFEXT_PRIVATE_KEY') }}"
+      query_tag: "{{ env_var('SFEXT_QUERY_TAG') }}"
+      threads: 4
