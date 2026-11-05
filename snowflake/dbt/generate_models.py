@@ -421,6 +421,7 @@ def _mart_sql(
                 expression = f"TO_CHAR(CAST({raw} AS TIMESTAMP_NTZ), 'MM/DD/YYYY')"
             else:
                 expression = f"NULLIF(LEFT(CAST({raw} AS VARCHAR), {length}), '')"
+            expression = f"CAST({expression} AS {target_type})"
         elif target_type == "TIMESTAMP_NTZ(0)":
             expression = f"CAST({raw} AS TIMESTAMP_NTZ(0))"
         else:

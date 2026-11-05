@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import re
 import sys
 from datetime import date, datetime
 from decimal import Decimal
@@ -244,3 +245,43 @@ def test_executemany_failure_logged(tmp_path):
         log.execute(conn, "INSERT INTO TEST VALUES (%s)", [(None,)], many=True)
     assert log.data["queries"] == [{"sql": "INSERT INTO TEST VALUES (%s)",
                                     "query_id": "batch-failed", "error": "batch failed"}]
+
+
+def test_mart_projection_types_match_xml_targets():
+    generator = run.module(run.ROOT / "dbt/generate_models.py")
+    metadata = generator.mapping_metadata()
+    for table, fields in metadata["targets"].items():
+        sql = generator._mart_sql(table, fields, metadata["connectors"], metadata)
+        assert (generator.MARTS / f"{table}.sql").read_text().strip() == sql.strip()
+        projections = re.findall(
+            r"^    CAST\(.+ AS (VARCHAR\(\d+\)|NUMBER\(\d+,\d+\)|TIMESTAMP_NTZ\(0\))\) AS (\w+),?$",
+            sql, flags=re.MULTILINE)
+        assert {name: kind for kind, name in projections} == {
+            field["name"]: run.sql_type(field) for field in fields}
+        for field in fields:
+            if run.sql_type(field).startswith("VARCHAR("):
+                projection = next(line for line in sql.splitlines()
+                                  if line.rstrip(",").endswith(f' AS {field["name"]}'))
+                if table == "NWK_ACTION_PRIMARY_TBL" and field["name"] == "AS_OF_DAY":
+                    assert "TO_CHAR(CAST(" in projection and "'MM/DD/YYYY'" in projection
+                else:
+                    assert "CAST(NULLIF(LEFT(CAST(" in projection
+                    assert f', {field["precision"]}), \'\')' in projection
+
+
+@pytest.mark.parametrize("alias", [False, True])
+def test_output_log_collision_rejected_before_writing(tmp_path, monkeypatch, capsys, alias):
+    path = tmp_path / "compare.json"
+    path.write_text("existing log")
+    other = tmp_path / "alias.json"
+    if alias:
+        other.symlink_to(path)
+    else:
+        other = tmp_path / "." / "compare.json"
+    monkeypatch.setattr(sys, "argv", ["run.py", "compare", "--output", str(other), "--log", str(path)])
+    monkeypatch.setattr(run, "head_commit", Mock(side_effect=AssertionError("must reject before connecting")))
+    with pytest.raises(SystemExit) as exc:
+        run.main()
+    assert exc.value.code == 2
+    assert "--output and --log must resolve to different paths" in capsys.readouterr().err
+    assert path.read_text() == "existing log"

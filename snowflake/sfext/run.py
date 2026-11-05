@@ -344,6 +344,8 @@ def main() -> None:
     parser.add_argument("--output", type=Path, default=Path.home() / "work/ehrp2biis_compare.json")
     parser.add_argument("--log", type=Path, default=Path.home() / "work/ehrp2biis_run.json")
     args = parser.parse_args()
+    if args.output.expanduser().resolve() == args.log.expanduser().resolve():
+        parser.error("--output and --log must resolve to different paths")
     directory = outside(args.directory)
     if args.command == "freeze":
         print("input_digest=" + freeze(directory)["input_digest"])
