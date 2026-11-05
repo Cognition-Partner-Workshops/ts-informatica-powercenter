@@ -342,8 +342,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--directory", type=Path, default=Path.home() / "work/ehrp2biis_frozen")
     parser.add_argument("--output", type=Path)
-    parser.add_argument("--log", type=Path, default=Path.home() / "work/ehrp2biis_run.json")
+    parser.add_argument("--log", type=Path)
     args = parser.parse_args()
+    args.run_id = sf.make_run_id("mig_pc", "dev")
+    if args.log is None:
+        args.log = Path.home() / "work/runs" / f"{args.command}-{args.run_id}.json"
     if args.output is None:
         args.output = Path.home() / "work" / (
             "ehrp2biis_legacy" if args.command == "legacy" else "ehrp2biis_compare.json")
@@ -364,7 +367,7 @@ def main() -> None:
         print(";\n".join(setup_sql()) + ";")
         return
     commit = head_commit()
-    run_id = sf.make_run_id("mig_pc", "dev")
+    run_id = args.run_id
     params = parameters(os.environ, commit, run_id)
     log = RunLog(args.log, run_id, commit)
     import snowflake.connector

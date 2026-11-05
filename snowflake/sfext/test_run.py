@@ -315,3 +315,26 @@ def test_full_regeneration_matches_committed_models(tmp_path, monkeypatch):
     assert generated == committed
     for relative in generated:
         assert (tmp_path / relative).read_bytes() == (project / relative).read_bytes(), relative
+
+
+@pytest.mark.parametrize("commands", [("setup", "compare"), ("compare", "compare")])
+def test_default_logs_preserve_sequential_command_queries(tmp_path, monkeypatch, commands):
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    logs = []
+    for command in commands:
+        monkeypatch.setattr(sys, "argv", ["run.py", command])
+        args = run.parse_args()
+        assert args.log.name == f"{command}-{args.run_id}.json"
+        assert args.log.parent == tmp_path / "work/runs"
+        log = run.RunLog(args.log, args.run_id, "a" * 40)
+        conn = Mock()
+        conn.cursor.return_value.sfqid = f"query-{len(logs)}"
+        log.execute(conn, "SELECT 1")
+        logs.append(log)
+    assert logs[0].path != logs[1].path
+    for index, log in enumerate(logs):
+        assert json.loads(log.path.read_text())["queries"] == [
+            {"sql": "SELECT 1", "query_id": f"query-{index}"}]
+    explicit = tmp_path / "explicit.json"
+    monkeypatch.setattr(sys, "argv", ["run.py", "compare", "--log", str(explicit)])
+    assert run.parse_args().log == explicit
