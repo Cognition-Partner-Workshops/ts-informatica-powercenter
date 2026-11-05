@@ -464,8 +464,8 @@ def main() -> None:
         "version: 2",
         "sources:",
         "  - name: src_tables",
-        "    database: SFNFR_20261104",
-        "    schema: TS_NWK_SRC_SFNFR_20261104",
+        "    database: \"{{ env_var('SFEXT_DATABASE') }}\"",
+        "    schema: \"{{ env_var('SFEXT_SOURCE_SCHEMA', 'EHRP2BIIS_SRC') }}\"",
         "    tables:",
     ]
     for table in sources:

@@ -300,3 +300,18 @@ def test_default_outputs_are_distinct(tmp_path, monkeypatch):
     explicit = tmp_path / "custom"
     monkeypatch.setattr(sys, "argv", ["run.py", "legacy", "--output", str(explicit)])
     assert run.parse_args().output == explicit
+
+
+def test_full_regeneration_matches_committed_models(tmp_path, monkeypatch):
+    generator = run.module(run.ROOT / "dbt/generate_models.py")
+    project = run.ROOT / "dbt/ehrp2biis_stage_load"
+    for name, relative in [("STAGING", "models/staging"), ("INTERMEDIATE", "models/intermediate"),
+                           ("MARTS", "models/marts"), ("TESTS", "tests")]:
+        monkeypatch.setattr(generator, name, tmp_path / relative)
+    generator.main()
+    generated = sorted(path.relative_to(tmp_path) for path in tmp_path.rglob("*") if path.is_file())
+    committed = sorted(path.relative_to(project) for directory in (project / "models", project / "tests")
+                       for path in directory.rglob("*") if path.is_file())
+    assert generated == committed
+    for relative in generated:
+        assert (tmp_path / relative).read_bytes() == (project / relative).read_bytes(), relative
