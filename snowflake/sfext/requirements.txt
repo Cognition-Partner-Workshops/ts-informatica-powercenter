@@ -1,0 +1,6 @@
+cryptography>=44
+pandas>=2
+dbt-snowflake>=1.9,<2
+pytest>=8,<9
+ruff>=0.9
+mypy>=1.15

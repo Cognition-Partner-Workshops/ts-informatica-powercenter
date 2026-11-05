@@ -1,0 +1,7 @@
+**/data/
+**/__pycache__/
+legacy/output/
+dbt/ehrp2biis_stage_load/target/
+dbt/ehrp2biis_stage_load/logs/
+dbt/ehrp2biis_stage_load/dbt_packages/
+dbt/ehrp2biis_stage_load/.user.yml

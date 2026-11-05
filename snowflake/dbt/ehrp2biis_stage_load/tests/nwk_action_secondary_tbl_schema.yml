@@ -1,0 +1,8 @@
+version: 2
+models:
+  - name: NWK_ACTION_SECONDARY_TBL
+    columns:
+      - name: EVENT_ID
+        data_tests:
+          - not_null:
+              arguments: {}
