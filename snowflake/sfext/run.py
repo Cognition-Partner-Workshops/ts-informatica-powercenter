@@ -45,6 +45,7 @@ WAREHOUSE = sf.warehouse_name("mig_pc_staging")
 MONITOR = sf.resource_monitor_name("mig_pc")
 TABLES = ("NWK_ACTION_PRIMARY_TBL", "NWK_ACTION_SECONDARY_TBL", "EHRP_RECS_TRACKING_TBL")
 PROJECT = ROOT / "dbt/ehrp2biis_stage_load"
+LOAD_CHUNK_SIZE = 5000
 
 
 def outside(path: Path) -> Path:
@@ -119,10 +120,13 @@ class RunLog:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             self.path.write_text(json.dumps(self.data, indent=2, default=str) + "\n")
 
-    def execute(self, conn: Any, sql: str, params: Any = None) -> Any:
+    def execute(self, conn: Any, sql: str, params: Any = None, *, many: bool = False) -> Any:
         cursor = conn.cursor()
         try:
-            cursor.execute(sql, params)
+            if many:
+                cursor.executemany(sql, params)
+            else:
+                cursor.execute(sql, params)
         except Exception as exc:
             self.data["queries"].append({"sql": sql, "query_id": getattr(exc, "sfqid", None) or cursor.sfqid,
                                           "error": str(exc)})
@@ -158,6 +162,10 @@ def setup(conn: Any, log: RunLog) -> None:
     log.save()
     print(json.dumps({"warehouse": WAREHOUSE, "state": state.get("state"),
                       "resource_monitor": state.get("resource_monitor")}))
+    if state.get("resource_monitor") == MONITOR:
+        print(f"Resource monitor assignment verified: {MONITOR}")
+    else:
+        print(f"The control connection must attach resource monitor {MONITOR} to {WAREHOUSE}.")
     if state.get("state") != "SUSPENDED":
         raise RuntimeError("Setup requires warehouse state=SUSPENDED; no compute was requested")
 
@@ -229,9 +237,12 @@ def load(conn: Any, log: RunLog, directory: Path, *, legacy: bool = False,
         with (directory / f"{table}.csv").open(newline="") as stream:
             rows = list(csv.DictReader(stream))
         insert = f"INSERT INTO {fqn} VALUES ({', '.join(['%s'] * len(fields))})"
-        # Individual executes deliberately expose every sfqid (no opaque bulk loader).
-        for row in rows:
-            log.execute(conn, insert, tuple(row[f["name"]] or None for f in fields))
+        # Both accepted CSV writers encode NULL as empty; the accepted loader also
+        # maps literal empty strings to NULL, preserving spaces and strings like NA.
+        values = [tuple(None if row[f["name"]] == "" else row[f["name"]] for f in fields)
+                  for row in rows]
+        for offset in range(0, len(values), LOAD_CHUNK_SIZE):
+            log.execute(conn, insert, values[offset:offset + LOAD_CHUNK_SIZE], many=True)
 
 
 def canonical(value: Any) -> list[str]:

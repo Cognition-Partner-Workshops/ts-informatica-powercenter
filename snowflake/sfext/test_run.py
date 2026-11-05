@@ -60,6 +60,19 @@ def test_setup_order():
         run.setup(Mock(), log)
 
 
+@pytest.mark.parametrize("monitor,expected", [(run.MONITOR, "assignment verified"),
+                                             (None, "control connection must attach"),
+                                             ("OTHER", "control connection must attach")])
+def test_setup_monitor_report(monitor, expected, capsys):
+    log = Mock()
+    log.data = {}
+    log.execute.return_value.description = [("name",), ("state",), ("resource_monitor",)]
+    log.execute.return_value.fetchall.return_value = [(run.WAREHOUSE, "SUSPENDED", monitor)]
+    run.setup(Mock(), log)
+    assert expected in capsys.readouterr().out
+    assert [c.args[1] for c in log.execute.call_args_list] == run.setup_sql()
+
+
 def test_database_ownership():
     for status, expected in [("Database successfully created.", True),
                              ("Database already exists, statement succeeded.", False)]:
@@ -182,3 +195,52 @@ def test_cli_refuses_compute_without_monitor(command, tmp_path, monkeypatch):
     assert cursor.execute.call_count == 1
     assert cursor.execute.call_args.args[0] == f"SHOW WAREHOUSES LIKE '{run.WAREHOUSE}'"
     conn.close.assert_called_once()
+
+
+@pytest.mark.parametrize("legacy", [False, True])
+@pytest.mark.parametrize("size", [0, 7])
+def test_load_csv_encoding_and_chunk_query_ids(tmp_path, monkeypatch, legacy, size):
+    import pandas as pd
+
+    fields = [{"name": name, "type": "string", "precision": 40, "scale": 0, "nullable": True}
+              for name in ["NULL_VALUE", "EMPTY", "SPACE", "NA_TEXT", "ZERO_TEXT", "SENTINEL"]]
+    rows = [dict(zip([f["name"] for f in fields], [None, "", " ", "NA", "0", "\\N"]))
+            for _ in range(size)]
+    schema = {"sources": {"TEST": fields}, "lookups": {}, "targets": {"TEST": fields}}
+    (tmp_path / "schema.json").write_text(json.dumps(schema))
+    csv_path = tmp_path / "TEST.csv"
+    if legacy:
+        pd.DataFrame(rows, columns=[f["name"] for f in fields]).to_csv(csv_path, index=False, na_rep="")
+    else:
+        run.module(run.ROOT / "synthetic/generate.py")._write_table(csv_path, fields, rows)
+    accepted = pd.read_csv(csv_path, dtype=str, keep_default_na=False).astype(object).replace("", None)
+    expected = list(accepted.itertuples(index=False, name=None))
+    if size:
+        assert expected[0] == (None, None, " ", "NA", "0", "\\N")
+    monkeypatch.setattr(run, "LOAD_CHUNK_SIZE", 3)
+    conn = Mock()
+    chunks = []
+    def cursor_factory():
+        cursor = Mock()
+        cursor.sfqid = f"query-{len(chunks)}"
+        chunks.append(cursor)
+        return cursor
+    conn.cursor.side_effect = cursor_factory
+    log = run.RunLog(tmp_path / "log.json", "test", "a" * 40)
+    run.load(conn, log, tmp_path, legacy=legacy)
+    batches = [c.executemany.call_args.args[1] for c in chunks if c.executemany.called]
+    assert [row for batch in batches for row in batch] == expected
+    assert [len(batch) for batch in batches] == ([3, 3, 1] if size else [])
+    assert len(log.data["queries"]) == 1 + len(batches)
+    assert [q["query_id"] for q in log.data["queries"]] == [c.sfqid for c in chunks]
+
+
+def test_executemany_failure_logged(tmp_path):
+    log = run.RunLog(tmp_path / "log.json", "test", "a" * 40)
+    conn = Mock()
+    conn.cursor.return_value.sfqid = "batch-failed"
+    conn.cursor.return_value.executemany.side_effect = RuntimeError("batch failed")
+    with pytest.raises(RuntimeError, match="batch failed"):
+        log.execute(conn, "INSERT INTO TEST VALUES (%s)", [(None,)], many=True)
+    assert log.data["queries"] == [{"sql": "INSERT INTO TEST VALUES (%s)",
+                                    "query_id": "batch-failed", "error": "batch failed"}]
