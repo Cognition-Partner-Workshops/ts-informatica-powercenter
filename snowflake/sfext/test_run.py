@@ -285,3 +285,18 @@ def test_output_log_collision_rejected_before_writing(tmp_path, monkeypatch, cap
     assert exc.value.code == 2
     assert "--output and --log must resolve to different paths" in capsys.readouterr().err
     assert path.read_text() == "existing log"
+
+
+def test_default_outputs_are_distinct(tmp_path, monkeypatch):
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(sys, "argv", ["run.py", "legacy"])
+    legacy = run.parse_args().output
+    monkeypatch.setattr(sys, "argv", ["run.py", "compare"])
+    compare = run.parse_args().output
+    assert legacy != compare
+    legacy.mkdir(parents=True)
+    compare.write_text("{}")
+    assert legacy.is_dir() and compare.is_file()
+    explicit = tmp_path / "custom"
+    monkeypatch.setattr(sys, "argv", ["run.py", "legacy", "--output", str(explicit)])
+    assert run.parse_args().output == explicit

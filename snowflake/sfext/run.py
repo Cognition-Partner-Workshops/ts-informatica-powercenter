@@ -336,23 +336,31 @@ def dbt_build(params: dict[str, Any], work: Path, log: RunLog) -> None:
         raise RuntimeError("dbt build failed")
 
 
-def main() -> None:
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=("setup", "check-monitor", "create-objects", "freeze", "load-src", "legacy", "dbt", "compare"))
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--directory", type=Path, default=Path.home() / "work/ehrp2biis_frozen")
-    parser.add_argument("--output", type=Path, default=Path.home() / "work/ehrp2biis_compare.json")
+    parser.add_argument("--output", type=Path)
     parser.add_argument("--log", type=Path, default=Path.home() / "work/ehrp2biis_run.json")
     args = parser.parse_args()
+    if args.output is None:
+        args.output = Path.home() / "work" / (
+            "ehrp2biis_legacy" if args.command == "legacy" else "ehrp2biis_compare.json")
     if args.output.expanduser().resolve() == args.log.expanduser().resolve():
         parser.error("--output and --log must resolve to different paths")
+    return args
+
+
+def main() -> None:
+    args = parse_args()
     directory = outside(args.directory)
     if args.command == "freeze":
         print("input_digest=" + freeze(directory)["input_digest"])
         return
     if args.dry_run:
         if args.command != "setup":
-            parser.error("--dry-run applies to setup only")
+            raise ValueError("--dry-run applies to setup only")
         print(";\n".join(setup_sql()) + ";")
         return
     commit = head_commit()
